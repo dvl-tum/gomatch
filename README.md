@@ -2,6 +2,8 @@
 
 Authors: Qunjie Zhou [@GrumpyZhou](https://github.com/GrumpyZhou), Sérgio Agostinho [@SergioRAgostinho](https://github.com/SergioRAgostinho)
 
+## ❗️Important Comment❗️
+Due to the time constraints of ECCV camera ready deadline, we are still working on preparing the pretrained models and more detailed instructions about reproducing our experiments. Please be patient about the update and we will try to do that asap. Thanks for your understanding. 
 
 ## Setting Up Special Dependencies
 
