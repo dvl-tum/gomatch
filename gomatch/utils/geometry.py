@@ -2,6 +2,7 @@ import numpy as np
 from cv2 import SOLVEPNP_AP3P, Rodrigues, solvePnPRansac, solvePnPRefineLM
 from torch import Tensor
 
+
 def distort(k, u, v):
     """COLMAP - src/base/camera_models.h:747"""
     u2 = u * u
@@ -24,7 +25,6 @@ def undistort(k, u, v):
 
     u0 = np.copy(u)
     v0 = np.copy(v)
-
 
     for _ in range(NUM_ITERATIONS):
         step0 = np.maximum(DOUBLE_EPS, np.abs(REL_STEP_SIZE * u))
@@ -66,6 +66,7 @@ def undistort(k, u, v):
     u, v = u.astype(dtype), v.astype(dtype)
     return u, v
 
+
 def get_numpy(data):
     if isinstance(data, Tensor):
         data = data.cpu().data.numpy()
@@ -81,7 +82,7 @@ def project3d_normalized(R, t, pts3d, radial=None, return_valid=False):
     pts3d_cam = pts3d @ R.T + t
 
     # Bring it to the normalized image plane at z=1
-    pts3d_norm = pts3d_cam / pts3d_cam[:,-1, None]
+    pts3d_norm = pts3d_cam / pts3d_cam[:, -1, None]
 
     # Distort if needed
     if radial is not None:
@@ -90,7 +91,7 @@ def project3d_normalized(R, t, pts3d, radial=None, return_valid=False):
 
     if return_valid:
         # only consider points in front of the camera
-        valid = pts3d_cam[:,-1] >= 0
+        valid = pts3d_cam[:, -1] >= 0
         return pts3d_norm[:, :2], valid
     else:
         return pts3d_norm[:, :2]
@@ -114,7 +115,9 @@ def project_points3d(K, R, t, pts3d, radial=None):
     t = get_numpy(t)
     pts3d = get_numpy(pts3d)
 
-    pts2d_norm, valid = project3d_normalized(R, t, pts3d, radial=radial, return_valid=True)
+    pts2d_norm, valid = project3d_normalized(
+        R, t, pts3d, radial=radial, return_valid=True
+    )
     pts3d_norm = np.concatenate([pts2d_norm, np.ones((len(pts2d_norm), 1))], axis=1)
 
     # Transform to pixel space. Last column is already guaranteed to be set to 1
@@ -132,8 +135,13 @@ def points2d_to_bearing_vector(pts2d, K, vec_dim=2, radial=None):
     return bvecs.astype(pts2d.dtype)
 
 
-
-def estimate_pose(pts2d_bvs, pts3d, ransac_thres=0.001, iterations_count:int=1000, confidence:float=0.99):
+def estimate_pose(
+    pts2d_bvs,
+    pts3d,
+    ransac_thres=0.001,
+    iterations_count: int = 1000,
+    confidence: float = 0.99,
+):
     if isinstance(pts2d_bvs, Tensor):
         pts2d_bvs = pts2d_bvs.cpu().data.numpy()
     if isinstance(pts3d, Tensor):
@@ -175,4 +183,3 @@ def estimate_pose(pts2d_bvs, pts3d, ransac_thres=0.001, iterations_count:int=100
     R = Rodrigues(rvec)[0]
     t = tvec.ravel()
     return R, t, inliers
-

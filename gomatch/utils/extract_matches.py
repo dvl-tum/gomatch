@@ -20,7 +20,7 @@ def mutual_assignment(match_scs):
 
     # Mutually matched
     match_ids = np.concatenate([m12, m21], axis=0)
-    _, ids, counts = np.unique(match_ids, axis=0, return_index=True, return_counts=True) 
+    _, ids, counts = np.unique(match_ids, axis=0, return_index=True, return_counts=True)
     match_ids_ = match_ids[ids[counts > 1]]
 
     # To avoid pose failure cases as much as possible
@@ -29,16 +29,17 @@ def mutual_assignment(match_scs):
 
     # Construct assignment mask for metric calculation
     assign_mask = np.zeros_like(match_scs)
-    if len(match_ids_.shape) == 2:    # In cases we have no mutual matches
+    if len(match_ids_.shape) == 2:  # In cases we have no mutual matches
         ids1, ids2 = match_ids_[:, 0], match_ids_[:, 1]
         assign_mask[ids1, ids2] = 1
-    dust_col = 1 - assign_mask.sum(1)  
+    dust_col = 1 - assign_mask.sum(1)
     dust_row = 1 - assign_mask.sum(0)
     assign_mask[:, -1] = dust_col
-    assign_mask[-1, :] = dust_row  
+    assign_mask[-1, :] = dust_row
     assign_mask[-1, -1] = 0
     assign_mask = assign_mask.astype(bool)
     return assign_mask
+
 
 def cal_mutual_nn_dists_kdtrees(nn12, nn21, dist12, threshold=None):
     # Mutual nearest matches wrt min distances
@@ -54,13 +55,16 @@ def cal_mutual_nn_dists_kdtrees(nn12, nn21, dist12, threshold=None):
         match_dists = match_dists[thres_mask]
     return match_ids, match_dists
 
+
 def align_points2d(pts1, pts2, dist_thres=None):
     # Measure pair-wise distances
     tree1 = cKDTree(pts1)
     tree2 = cKDTree(pts2)
     dist12, nn12 = tree2.query(pts1)
     dist21, nn21 = tree1.query(pts2)
-    
+
     # Define inliers with the nearest mutual matches
-    aligned_ids, _ = cal_mutual_nn_dists_kdtrees(nn12, nn21, dist12, threshold=dist_thres)
+    aligned_ids, _ = cal_mutual_nn_dists_kdtrees(
+        nn12, nn21, dist12, threshold=dist_thres
+    )
     return aligned_ids

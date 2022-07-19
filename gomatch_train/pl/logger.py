@@ -36,7 +36,7 @@ class TensorBoardLoggerMetrics(TensorBoardLogger):
                 if isinstance(self._default_hp_metric, dict):
                     metrics = self._default_hp_metric
                 else:
-                    metrics = {"hp_metric": float('inf')}
+                    metrics = {"hp_metric": float("inf")}
         elif not isinstance(metrics, dict):
             metrics = {"hp_metric": metrics}
 

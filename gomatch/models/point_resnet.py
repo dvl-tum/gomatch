@@ -2,38 +2,41 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-def conv1d_layer(in_channel, out_channel, normalize='ins'):
+
+def conv1d_layer(in_channel, out_channel, normalize="ins"):
     layers = [nn.Conv1d(in_channel, out_channel, kernel_size=1)]
-    if normalize == 'ins':
+    if normalize == "ins":
         layers.append(nn.InstanceNorm1d(in_channel))
-    if normalize and 'bn' in normalize:
+    if normalize and "bn" in normalize:
         layers.append(
-            nn.BatchNorm1d(in_channel, track_running_stats=(normalize == 'bn_untrack'))
+            nn.BatchNorm1d(in_channel, track_running_stats=(normalize == "bn_untrack"))
         )
     return nn.Sequential(*layers)
 
+
 class conv1d_residual_block(nn.Module):
-    def __init__(self, in_channel, out_channel, mid_channel=None, 
-                 normalize='ins', activation='relu', residual=True):
+    def __init__(
+        self,
+        in_channel,
+        out_channel,
+        mid_channel=None,
+        normalize="ins",
+        activation="relu",
+        residual=True,
+    ):
         super().__init__()
         self.residual = residual
-        mid_channel = out_channel if mid_channel is None else mid_channel        
+        mid_channel = out_channel if mid_channel is None else mid_channel
         self.preconv = conv1d_layer(
-            in_channel=in_channel, 
-            out_channel=mid_channel,
-            normalize=None
+            in_channel=in_channel, out_channel=mid_channel, normalize=None
         )
         self.conv1 = conv1d_layer(
-            in_channel=mid_channel,
-            out_channel=mid_channel,
-            normalize=normalize
+            in_channel=mid_channel, out_channel=mid_channel, normalize=normalize
         )
-        self.conv2 = conv1d_layer(            
-            in_channel=mid_channel,
-            out_channel=out_channel,
-            normalize=normalize
+        self.conv2 = conv1d_layer(
+            in_channel=mid_channel, out_channel=out_channel, normalize=normalize
         )
-        self.act = nn.LeakyReLU() if 'leaky' in activation else nn.ReLU()
+        self.act = nn.LeakyReLU() if "leaky" in activation else nn.ReLU()
 
     def forward(self, x):
         x_residual = x
@@ -42,35 +45,45 @@ class conv1d_residual_block(nn.Module):
         x = self.conv2(x)
         x = self.act(x)
         if self.residual:
-            x = x + x_residual 
+            x = x + x_residual
         return x
 
+
 class PointResNet(nn.Module):
-    def __init__(self, in_channel, num_layers=12, feat_channel=128, mid_channel=128, 
-                 activation='relu', normalize='ins', residual=True):
+    def __init__(
+        self,
+        in_channel,
+        num_layers=12,
+        feat_channel=128,
+        mid_channel=128,
+        activation="relu",
+        normalize="ins",
+        residual=True,
+    ):
         super().__init__()
 
         self.num_layers = num_layers
 
         # First convolution
-        self.conv_in = nn.Sequential(*[nn.Conv1d(in_channel, feat_channel, kernel_size=1)])
+        self.conv_in = nn.Sequential(
+            *[nn.Conv1d(in_channel, feat_channel, kernel_size=1)]
+        )
         for i in range(self.num_layers):
             setattr(
-                self, 
-                f'conv_{i}',
+                self,
+                f"conv_{i}",
                 conv1d_residual_block(
                     in_channel=feat_channel,
                     out_channel=feat_channel,
                     mid_channel=mid_channel,
                     normalize=normalize,
                     activation=activation,
-                    residual=residual
-                )
+                    residual=residual,
+                ),
             )
 
     def forward(self, x):
         x = self.conv_in(x)
         for i in range(self.num_layers):
-            x = getattr(self, f'conv_{i}')(x)
+            x = getattr(self, f"conv_{i}")(x)
         return x
-    

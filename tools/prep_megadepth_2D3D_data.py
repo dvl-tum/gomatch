@@ -30,7 +30,8 @@ def process_scenes(args):
     data_dict = {}
     scene_files = sorted(glob.glob(os.path.join(scene_info_dir, "*.npz")))
     data_save_path = os.path.join(
-        save_dir, f"megadepth_2d3d_q{args.scene_max}ov{args.overlap[0]}-{args.overlap[1]}covis{topk_min}-{topk_max}.npy",
+        save_dir,
+        f"megadepth_2d3d_q{args.scene_max}ov{args.overlap[0]}-{args.overlap[1]}covis{topk_min}-{topk_max}.npy",
     )
     logger.info(f"Save path: {data_save_path}")
     logger.info(f"Start process {len(scene_files)} scenes ......")
@@ -53,7 +54,9 @@ def process_scenes(args):
         overlap_matrix = scene_info["overlap_matrix"]  # Already ignore diagnoal
 
         # Select valid pairs based on overlapping
-        valid = np.logical_and(overlap_matrix >= args.overlap[0], overlap_matrix <=  args.overlap[1])
+        valid = np.logical_and(
+            overlap_matrix >= args.overlap[0], overlap_matrix <= args.overlap[1]
+        )
         valid_pair_ids = np.vstack(np.where(valid))  # 2,N
         valid_num = valid_pair_ids.shape[1]
 
@@ -72,12 +75,12 @@ def process_scenes(args):
         for i in randomized:
             qid = vals[i]
             iid = ids[i]
-            k = counts[i]        
+            k = counts[i]
             if k < topk_min:
-                continue 
+                continue
 
             # Make sure image uncorrupted
-            name = image_paths[qid].replace('Undistorted_SfM/', '')
+            name = image_paths[qid].replace("Undistorted_SfM/", "")
             im_path = os.path.join(args.base_dir, name)
             try:
                 im = Image.open(im_path)
@@ -85,7 +88,7 @@ def process_scenes(args):
                 logger.error(f"Can't open image {im_path}, skip!!")
                 continue
 
-            # Load query pose     
+            # Load query pose
             pose = poses[qid]
             R = pose[:3, :3]
             t = pose[:3, 3]
@@ -95,15 +98,24 @@ def process_scenes(args):
             pts3d2d = points3D_id_to_2D[qid]
             pts3d = np.array(list(pts3d2d.keys()))
 
-            # Randomly select topk db images 
+            # Randomly select topk db images
             dbids = valid_pair_ids[1, iid : iid + k]
             np.random.shuffle(dbids)
             if len(dbids) > topk_max:
                 dbids = dbids[:topk_max]
 
             # Save query data
-            ims[qid] = Namespace(name=name, K=K, R=R, t=t, w=im.width, h=im.height,
-                                 topk=dbids, ovs=[], pts3d=pts3d)
+            ims[qid] = Namespace(
+                name=name,
+                K=K,
+                R=R,
+                t=t,
+                w=im.width,
+                h=im.height,
+                topk=dbids,
+                ovs=[],
+                pts3d=pts3d,
+            )
 
             # Save db data
             ovs_ = ims[qid].ovs
@@ -117,7 +129,7 @@ def process_scenes(args):
                     t = pose[:3, 3]
                     K = intrinsics[dbid]
                     pts3d = np.array(list(pts3d2d.keys()))
-                    name = image_paths[dbid].replace('Undistorted_SfM/', '')
+                    name = image_paths[dbid].replace("Undistorted_SfM/", "")
                     im_path = os.path.join(args.base_dir, name)
 
                     # Check image size
@@ -126,16 +138,20 @@ def process_scenes(args):
                     except:
                         logger.error(f"Can't open image {im_path}, skip!!")
                         continue
-                    ims[dbid] = Namespace(name=name, K=K, R=R, t=t, w=im.width, h=im.height, pts3d=pts3d)
+                    ims[dbid] = Namespace(
+                        name=name, K=K, R=R, t=t, w=im.width, h=im.height, pts3d=pts3d
+                    )
                 else:
                     ndups += 1
             query_ids.append(qid)
             if len(query_ids) >= args.scene_max:
                 break
         if len(query_ids) == 0:
-            logger.info(f'Scene {scene_name} valid pairs {valid_num}, no queries, skip...')
+            logger.info(
+                f"Scene {scene_name} valid pairs {valid_num}, no queries, skip..."
+            )
             continue
-        scene_data = {'qids':query_ids, 'ims':ims}
+        scene_data = {"qids": query_ids, "ims": ims}
 
         # Record statis
         statis.ovs += ovs
@@ -161,7 +177,7 @@ def process_scenes(args):
 
 def reduce_3d_data(base_dir, save_dir, split=False):
     global logger
-    
+
     points3D_dir = os.path.join(save_dir, "scene_points3d")
     if not os.path.exists(points3D_dir):
         os.makedirs(points3D_dir)
@@ -170,7 +186,7 @@ def reduce_3d_data(base_dir, save_dir, split=False):
         if os.path.exists(save_path):
             logger.info(f"Finished, {save_path} existed.")
             return
-        
+
     scene_info_dir = os.path.join(base_dir, "scene_info")
     scene_files = sorted(glob.glob(os.path.join(scene_info_dir, "*.npz")))
     logger.info(
@@ -201,15 +217,37 @@ def reduce_3d_data(base_dir, save_dir, split=False):
 
     if not split:
         np.save(save_path, data)
-        logger.info(f"Saved {save_path}")        
+        logger.info(f"Saved {save_path}")
 
 
 def split_3d_to_train_val(points3d_file):
-    val_split = ['0024', '0021', '0025', '1589', '0019',
-                 '0008', '0032', '0063', '0015', '0022',
-                 '0044', '0087', '0060', '0183', '0389',
-                 '0058', '0102', '0238', '0559', '0189',
-                 '0446', '0024', '0107', '5004', '0107']
+    val_split = [
+        "0024",
+        "0021",
+        "0025",
+        "1589",
+        "0019",
+        "0008",
+        "0032",
+        "0063",
+        "0015",
+        "0022",
+        "0044",
+        "0087",
+        "0060",
+        "0183",
+        "0389",
+        "0058",
+        "0102",
+        "0238",
+        "0559",
+        "0189",
+        "0446",
+        "0024",
+        "0107",
+        "5004",
+        "0107",
+    ]
 
     points3d = np.load(points3d_file, allow_pickle=True).item()
     train = {}
@@ -220,8 +258,9 @@ def split_3d_to_train_val(points3d_file):
             val[sid] = points3d[sid]
         else:
             train[sid] = points3d[sid]
-    np.save(points3d_file.replace('all', 'train'), train)
-    np.save(points3d_file.replace('all', 'val'), val)
+    np.save(points3d_file.replace("all", "train"), train)
+    np.save(points3d_file.replace("all", "val"), val)
+
 
 def parse_arguments():
 
@@ -313,6 +352,7 @@ def main():
     if not args.split_scenes and args.split_train_val:
         points3d_file = os.path.join(args.save_dir, "scene_points3d/all.npy")
         split_3d_to_train_val(points3d_file)
+
 
 if __name__ == "__main__":
     main()

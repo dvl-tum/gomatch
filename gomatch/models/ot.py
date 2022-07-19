@@ -82,21 +82,23 @@ def sinkhorn_log(cost, mu, nu, eps=0.1, max_iters=50, thresh=1e-6, acc_factor=No
     P = torch.exp(M(u, v))
     return P
 
+
 def init_couplings_and_marginals(cost, bin_cost=None):
     b, m, n = cost.shape
     one = cost.new([1])
     couplings = cost
-    
+
     # Append dustbins to couplings  (SuperGlue version)
     m_bins = bin_cost.expand(b, m, 1)
     n_bins = bin_cost.expand(b, 1, n)
-    last_bin = bin_cost.expand(b, 1, 1)        
-    couplings = torch.cat([torch.cat([cost, m_bins], -1),  
-                           torch.cat([n_bins, last_bin], -1)], 1)        
+    last_bin = bin_cost.expand(b, 1, 1)
+    couplings = torch.cat(
+        [torch.cat([cost, m_bins], -1), torch.cat([n_bins, last_bin], -1)], 1
+    )
 
     # Uniform marginals with dustbin
     mu = torch.cat([one.expand(m), one * n]) / (m + n)
     nu = torch.cat([one.expand(n), one * m]) / (m + n)
-    mu = mu.unsqueeze(0)   # 1, m
-    nu = nu.unsqueeze(0)   # 1, n
+    mu = mu.unsqueeze(0)  # 1, m
+    nu = nu.unsqueeze(0)  # 1, n
     return couplings, mu, nu

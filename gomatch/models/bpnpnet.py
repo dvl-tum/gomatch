@@ -60,11 +60,11 @@ class BlindPnP(nn.Module):
         return P
 
 
-class BPnPMatcher(nn.Module):   
+class BPnPMatcher(nn.Module):
     def __init__(self):
         super().__init__()
         self.model = BlindPnP()
-    
+
     def forward(self, pts2d, idx2d, pts3d, idx3d):
         p2d = batchify_b(pts2d[:, :2], idx2d)
         p3d = batchify_b(pts3d, idx3d)
@@ -89,8 +89,8 @@ class BPnPMatcher(nn.Module):
             Cia[:n3d, :n2d] = Ci
             out.append(Cia)
         return out
-    
-    
+
+
 class BPnPNet(nn.Module):
     def __init__(self):
         super().__init__()
@@ -98,4 +98,3 @@ class BPnPNet(nn.Module):
 
     def forward(self, pts2d, idx2d, pts3d, idx3d):
         return self.matcher(pts2d, idx2d, pts3d, idx3d)
-    

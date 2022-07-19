@@ -14,10 +14,11 @@ class PointResNetEncoder(PointResNet):
         out = flatten_b(out, idx)
         return out
 
-class SCAtt2D3D(nn.Module):
-    '''Self and cross attention for 2D3D matching.'''
 
-    def __init__(self, att_layers=['self', 'cross', 'self']):
+class SCAtt2D3D(nn.Module):
+    """Self and cross attention for 2D3D matching."""
+
+    def __init__(self, att_layers=["self", "cross", "self"]):
         super().__init__()
         self.att = SCAttention(att_layers)
 
@@ -27,16 +28,17 @@ class SCAtt2D3D(nn.Module):
         desc3d = desc3d.unsqueeze(0).permute(0, 2, 1)
         pts2d = pts2d.unsqueeze(0).permute(0, 2, 1)
         pts3d = pts3d.unsqueeze(0).permute(0, 2, 1)
-        
+
         # Perform attention
         desc2d, desc3d = self.att(desc2d, desc3d, coords0=pts2d, coords1=pts3d)
         desc2d = desc2d.permute(0, 2, 1).squeeze()
         desc3d = desc3d.permute(0, 2, 1).squeeze()
         return desc2d, desc3d
 
+
 class MatchCls2D3D(nn.Module):
-    '''Match classification for 2D3D matching.'''
-    
+    """Match classification for 2D3D matching."""
+
     def __init__(self, kp_feat_dim=128, feat_dim=128, num_layers=4):
         super().__init__()
         self.encoder = PointResNet(
@@ -49,9 +51,9 @@ class MatchCls2D3D(nn.Module):
 
     def forward(self, f2d, f3d):
         # f2d, f3d: (B, C, N)
-        
-        # Feature fusion        
-        mfeat = torch.cat([f2d, f3d], dim=1)   # B=1, C, N
+
+        # Feature fusion
+        mfeat = torch.cat([f2d, f3d], dim=1)  # B=1, C, N
 
         # Predict probs
         mfeat = self.encoder(mfeat)

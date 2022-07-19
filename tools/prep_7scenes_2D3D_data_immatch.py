@@ -80,9 +80,10 @@ def parse_arguments():
 
 
 def init_detector(args):
-    from immatch.utils.model_helper import init_model    
+    from immatch.utils.model_helper import init_model
+
     detector, _ = init_model(
-         config=f'immatch/{args.detector}', benchmark_name='default', root_dir='.'
+        config=f"immatch/{args.detector}", benchmark_name="default", root_dir="."
     )
     return detector
 
@@ -151,16 +152,17 @@ def extract_color_image_data(prefix, frame_id, detector):
     name = os.path.join(prefix, f"frame-{frame_id:06d}.color.png")
     img = np.array(Image.open(name))
     height, width = img.shape[:2]
-    
+
     # Extract keypoints
     kpts, _ = detector.load_and_extract(name)
     kpts = kpts.cpu().data.numpy() if isinstance(kpts, torch.Tensor) else kpts
     kpts = np.unique(kpts, axis=0)
-#     print(kpts.shape)
+    #     print(kpts.shape)
     # fix name to only retain info about seq and below
     name = os.path.join(*Path(name).parts[-3:])
     image = dict(name=name, width=width, height=height, kpts=kpts)
     return image
+
 
 def extract_point_cloud(prefix, frame_id, pts2d_c):
     """pts2d_c assumes the 2d keypoints are coming from the color camera"""
@@ -281,7 +283,7 @@ def process_scenes(args):
             # extract all important information from each required frames
             pts3d_data[seq_id] = dict()
             ims = dict()
-            print(f">>Process folder {folder} frames: {len(frame_ids)} ")            
+            print(f">>Process folder {folder} frames: {len(frame_ids)} ")
             for fid in frame_ids:
                 frame = extract_frame_data(folder, fid, detector)
 
@@ -309,7 +311,7 @@ def process_scenes(args):
     # save everything
     np.save(data_save_path, data_dict)
     np.save(os.path.join(pts3d_prefix, "test_all.npy"), pts3d_data)
-    
+
 
 def parse_queries_and_retrievals(filepath):
 
@@ -320,7 +322,8 @@ def parse_queries_and_retrievals(filepath):
             query_id = query_id.replace(".color.png", "").replace("frame-", "")
             retrieval_id = retrieval_id.replace(".color.png", "").replace("frame-", "")
             pairs[query_id].append(retrieval_id)
-    return pairs    
+    return pairs
+
 
 def process_scenes_retrieval(args):
     data_dict = dict()
@@ -333,20 +336,22 @@ def process_scenes_retrieval(args):
     for scene in SCENES:
         pts3d_data[scene] = dict()
         ims = dict()
-        
-        scene_folder = os.path.join(args.base_dir, scene)    
-        retrieval_dict = parse_queries_and_retrievals(os.path.join(scene_folder, f"{scene}_top10.txt"))
+
+        scene_folder = os.path.join(args.base_dir, scene)
+        retrieval_dict = parse_queries_and_retrievals(
+            os.path.join(scene_folder, f"{scene}_top10.txt")
+        )
 
         # collect final set of frame ids for which we need info
         frame_ids = set(retrieval_dict)
         for rids_i in retrieval_dict.values():
             frame_ids.update(rids_i)
 
-        print(f">>Process folder {scene_folder} frames: {len(frame_ids)} ")           
+        print(f">>Process folder {scene_folder} frames: {len(frame_ids)} ")
         for fid_full in tqdm(sorted(frame_ids), unit="frames"):
             seq_id, fid = fid_full.split("/")
             fid = int(fid)
- 
+
             seq_folder = os.path.join(scene_folder, seq_id)
             frame = extract_frame_data(seq_folder, fid, detector)
 
@@ -367,30 +372,37 @@ def process_scenes_retrieval(args):
 
         # store everything
         data_dict[scene] = dict(qids=list(retrieval_dict), ims=ims)
-        
+
     # save everything
-    data_save_path = os.path.join(args.save_dir, f"densevlad-top10-{args.detector}", "7scenes_2d3d.npy")
-    pts3d_prefix = os.path.join(args.save_dir, f"densevlad-top10-{args.detector}",  "scene_points3d")
+    data_save_path = os.path.join(
+        args.save_dir, f"densevlad-top10-{args.detector}", "7scenes_2d3d.npy"
+    )
+    pts3d_prefix = os.path.join(
+        args.save_dir, f"densevlad-top10-{args.detector}", "scene_points3d"
+    )
     os.makedirs(pts3d_prefix, exist_ok=True)
     np.save(data_save_path, data_dict)
     np.save(os.path.join(pts3d_prefix, "all.npy"), pts3d_data)
     os.symlink(
         os.path.join(pts3d_prefix, "all.npy"), os.path.join(pts3d_prefix, "test.npy")
-    )    
+    )
+
 
 def main():
 
     global logger
 
     args = parse_arguments()
-#     args.save_dir = os.path.join(args.save_dir, args.detector)
+    #     args.save_dir = os.path.join(args.save_dir, args.detector)
 
     # initialize singleton logger instance
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
     logger = get_logger(log_path=os.path.join(args.save_dir, args.log))
-    
+
     process_scenes_retrieval(args)
+
+
 #     process_scenes(args)
 
 
