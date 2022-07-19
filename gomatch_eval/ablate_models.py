@@ -60,35 +60,26 @@ def ablate_archs(
     oracle=False,
     debug=False,
     overwrite=False,
-    ransac_thres=0.001,
-    iterations_count=1000,
-    confidence=0.99,
-    split=None,
 ):
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
     if oracle:
         model_ckpts = [None]
 
-    metrics_out = dict()
     for ckpt_path in model_ckpts:
         logger.info(f"\n\n\n>>>>>{ckpt_path}")
 
-        suffix = f"_ransac{ransac_thres}_iters{iterations_count}_conf{confidence}"
-        if split is not None:
-            suffix = f"_{split}" + suffix
         if oracle:
-            save_path = os.path.join(cache_dir, f"OracleMatcher{suffix}.npy")
+            save_path = os.path.join(cache_dir, "OracleMatcher.npy")
         else:
             base = os.path.basename(ckpt_path).replace(".ckpt", "")
-            save_path = os.path.join(cache_dir, base + suffix + ".npy")
+            save_path = os.path.join(cache_dir, base + ".npy")
         if debug:
             save_path = save_path.replace("npy", "debug.npy")
         if os.path.exists(save_path) and not overwrite:
             # Load cached metrics
             logger.info(f"Load cache: {save_path}")
             metrics = np.load(save_path, allow_pickle=True).item()
-            metrics_out[ckpt_path] = metrics
             summarize_metrics(metrics)
             continue
 
@@ -96,18 +87,13 @@ def ablate_archs(
         evaluator = MatcherEvaluator(
             ckpt_path=ckpt_path,
             oracle=oracle,
-            ransac_thres=ransac_thres,
-            iterations_count=iterations_count,
-            confidence=confidence,
         )
         data_loader.dataset.p3d_type = evaluator.p3d_type
         evaluator.eval_data_loader(data_loader, debug=debug)
 
         # Save results
         np.save(save_path, evaluator.metrics)
-        metrics_out[ckpt_path] = evaluator.metrics
         logger.info(f"Cache results to : {save_path}")
-    return metrics_out
 
 
 def run_ablation(
