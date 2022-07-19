@@ -76,7 +76,6 @@ def run_benchmark(
     overwrite=False,
     covis_k_nums=[1, 3, 5, 7, 10],
     npts_max=1024,
-    quant_desc=None,
     prefix=None,
 ):
     assert ckpt or vismatch or oracle
@@ -91,7 +90,6 @@ def run_benchmark(
         npts=[10, npts_max],
         outlier_rate=[0, 1],
         merge_p3dm=merge_before_match,
-        quant_desc=quant_desc,
     )
     data_loader = init_data_loader(config, split=split)
 
@@ -100,8 +98,6 @@ def run_benchmark(
     tag = f"{dataset_name}/{split}/{p2d_type}_inls{dataset.inls2d_thres}"
     if dataset.normalized_thres:
         tag += "normth"
-    if dataset.quant_desc is not None:
-        tag += f".desc_{dataset.quant_desc}"
     if dataset.npts[1] != 1024:
         tag += f".mnpts{dataset.npts[1]}"
 
@@ -141,7 +137,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--splits", nargs="*", type=str, default=["test"])
     parser.add_argument("--vismatch", action="store_true")
-    parser.add_argument("--quant_desc", type=str, default=None)
     parser.add_argument("--ckpt", type=str, default=None)
     parser.add_argument(
         "--p2d_type", type=str, choices=["sift", "superpoint"], default="sift"
@@ -168,7 +163,6 @@ if __name__ == "__main__":
             p2d_type=args.p2d_type,
             ckpt=args.ckpt,
             vismatch=args.vismatch,
-            quant_desc=args.quant_desc,
             oracle=args.oracle,
             merge_before_match=args.merge_before_match,
             debug=args.debug,
