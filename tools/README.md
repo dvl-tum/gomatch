@@ -5,9 +5,9 @@ All data processing tools assume by default a symlink to the folder `data`, link
 ```
 $ tree data
 data
-├── 7scenes -> /storage/blind_pnp/7scenes
-├── cambridge -> /storage/blind_pnp/cambridge
-├── MegaDepth_undistort -> /storage/blind_pnp/megadepth
+├── 7scenes -> /some_path_to/7scenes
+├── cambridge -> /some_path_to/cambridge
+├── MegaDepth_undistort -> /some_path_to/megadepth
 ```
 
 You also need to make use of a third-party dependency called `immatch`, that is available [here](https://github.com/GrumpyZhou/image-matching-toolbox) to generate descriptor caches.
@@ -61,7 +61,7 @@ tool location: [`tools/prep_cambridge_2D3D_data.py`](tools/prep_cambridge_2D3D_d
 
 By default the tool assumes there is a folder with the undistorted SfM reconstruction of MegaDepth symlinked to the `data` folder, as explained in the previous section. If the folder is symlinked, theoretically no arguments need to passed. Just call the tool with
 ```
-$ python tools/prep_cambridge_2D3D_data.py
+python tools/prep_cambridge_2D3D_data.py
 ```
 
 After completion, the tool will generate a number of files in `data/cambridge/data_processed/query-netvlad10`.
@@ -71,8 +71,10 @@ After completion, the tool will generate a number of files in `data/cambridge/da
 Run the tool `tools/extract_features_immatch.py`.
 
 ```
-python -m tools.extract_features_immatch --immatch_config 'immatch/sift'   --dataset 'cambridge'
+python -m tools.extract_features_immatch --immatch_config 'immatch/superpoint'   --dataset 'cambridge'
 ```
-This will generate the descriptor cache for sift.
+This will generate the descriptor cache for SuperPoint.
+
+
 
 
