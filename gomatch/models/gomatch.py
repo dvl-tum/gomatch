@@ -1,4 +1,5 @@
-from typing import List
+from typing import Iterable, List, Tuple
+
 import torch
 import torch.nn as nn
 from torch_scatter import scatter_sum
@@ -7,17 +8,17 @@ from .ot import RegularisedOptimalTransport, init_couplings_and_marginals
 from .bpnpnet import pairwiseL2Dist
 from .net_modules import PointResNetEncoder, SCAtt2D3D, MatchCls2D3D
 
-from gomatch.utils.extract_matches import mutual_assignment
+from ..utils.extract_matches import mutual_assignment
 
 
 class OTMatcher(nn.Module):
     def __init__(
         self,
-        p3d_type,
-        kp_feat_dim=128,
-        share_kp2d_enc=True,
-        att_layers=["self", "cross", "self"],
-    ):
+        p3d_type: str,
+        kp_feat_dim: int = 128,
+        share_kp2d_enc: bool = True,
+        att_layers: Iterable[str] = ("self", "cross", "self"),
+    ) -> None:
         super().__init__()
 
         # 2D encoder
@@ -39,12 +40,18 @@ class OTMatcher(nn.Module):
         # Initialize Attention
         self.attention = SCAtt2D3D(att_layers) if att_layers else None
 
-    def encode_pts(self, pts2d, idx2d, pts3d, idx3d):
+    def encode_pts(
+        self,
+        pts2d: torch.Tensor,
+        idx2d: torch.Tensor,
+        pts3d: torch.Tensor,
+        idx3d: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         desc2d = self.kp2d_enc(pts2d, idx2d)
         desc3d = self.kp3d_enc(pts3d, idx3d)
         return desc2d, desc3d
 
-    def ot_match(self, desc2d, desc3d):
+    def ot_match(self, desc2d: torch.Tensor, desc3d: torch.Tensor) -> torch.Tensor:
         # Matching distances
         idists = pairwiseL2Dist(desc3d.transpose(-2, -1), desc2d.transpose(-2, -1))
 
@@ -53,7 +60,13 @@ class OTMatcher(nn.Module):
         iscores = self.ot(cost, mu, nu).squeeze(0)
         return iscores
 
-    def forward_sample(self, desc2d, desc3d, pts2d, pts3d):
+    def forward_sample(
+        self,
+        desc2d: torch.Tensor,
+        desc3d: torch.Tensor,
+        pts2d: torch.Tensor,
+        pts3d: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         # desc2d, desc3d:  (N, 2), (N, 3)
         n2, n3 = len(desc2d), len(desc3d)
 
@@ -72,7 +85,13 @@ class OTMatcher(nn.Module):
         iscores = self.ot_match(desc2d, desc3d)
         return iscores, desc2d, desc3d
 
-    def forward(self, pts2d, idx2d, pts3d, idx3d):
+    def forward(
+        self,
+        pts2d: torch.Tensor,
+        idx2d: torch.Tensor,
+        pts3d: torch.Tensor,
+        idx3d: torch.Tensor,
+    ) -> List[torch.Tensor]:
         # Keypoint Encoding
         desc2d, desc3d = self.encode_pts(
             pts2d,
@@ -99,11 +118,11 @@ class OTMatcher(nn.Module):
 class OTMatcherCls(nn.Module):
     def __init__(
         self,
-        p3d_type,
-        kp_feat_dim=128,
-        share_kp2d_enc=True,
-        att_layers=["self", "cross", "self"],
-    ):
+        p3d_type: str,
+        kp_feat_dim: int = 128,
+        share_kp2d_enc: bool = True,
+        att_layers: Iterable[str] = ("self", "cross", "self"),
+    ) -> None:
         super().__init__()
 
         # OT feature matcher
@@ -117,7 +136,16 @@ class OTMatcherCls(nn.Module):
         # Classifier for outlier match rejection
         self.classifier = MatchCls2D3D(kp_feat_dim=kp_feat_dim)
 
-    def classify_sample(self, ipts2d, ipts3d, idesc2d, idesc3d, iscores):
+    def classify_sample(
+        self,
+        ipts2d,
+        ipts3d,
+        idesc2d: torch.Tensor,
+        idesc3d: torch.Tensor,
+        iscores: torch.Tensor,
+    ) -> torch.Tensor:
+        # TODO: ipts2d and ipts3d are not being used. Remove them.
+
         # Select mutual matches
         match_mask = torch.tensor(mutual_assignment(iscores))
         i3d, i2d = torch.where(match_mask[:-1, :-1])
@@ -138,7 +166,13 @@ class OTMatcherCls(nn.Module):
         match_probs[i3d, i2d] = probs
         return match_probs
 
-    def forward(self, pts2d, idx2d, pts3d, idx3d):
+    def forward(
+        self,
+        pts2d: torch.Tensor,
+        idx2d: torch.Tensor,
+        pts3d: torch.Tensor,
+        idx3d: torch.Tensor,
+    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         # Keypoint Encoding
         desc2d, desc3d = self.raw_matcher.encode_pts(
             pts2d,
@@ -149,8 +183,8 @@ class OTMatcherCls(nn.Module):
 
         # Iterate each sample
         nb = len(torch.unique_consecutive(idx2d))
-        scores_b = []
-        match_probs_b = []
+        scores_b: List[torch.Tensor] = []
+        match_probs_b: List[torch.Tensor] = []
         for ib in range(nb):
             mask2d = ib == idx2d
             mask3d = ib == idx3d
@@ -177,18 +211,24 @@ class OTMatcherCls(nn.Module):
 
 
 class GoMatchBVs(nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.matcher = OTMatcherCls(
             p3d_type="bvs", share_kp2d_enc=True, att_layers=["self", "cross", "self"]
         )
 
-    def forward(self, pts2d, idx2d, pts3d, idx3d):
+    def forward(
+        self,
+        pts2d: torch.Tensor,
+        idx2d: torch.Tensor,
+        pts3d: torch.Tensor,
+        idx3d: torch.Tensor,
+    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         return self.matcher(pts2d, idx2d, pts3d, idx3d)
 
 
 class GoMatchCoords(nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.matcher = OTMatcherCls(
             p3d_type="coords",
@@ -196,5 +236,11 @@ class GoMatchCoords(nn.Module):
             att_layers=["self", "cross", "self"],
         )
 
-    def forward(self, pts2d, idx2d, pts3d, idx3d):
+    def forward(
+        self,
+        pts2d: torch.Tensor,
+        idx2d: torch.Tensor,
+        pts3d: torch.Tensor,
+        idx3d: torch.Tensor,
+    ) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         return self.matcher(pts2d, idx2d, pts3d, idx3d)

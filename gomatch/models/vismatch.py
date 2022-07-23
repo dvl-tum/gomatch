@@ -1,13 +1,19 @@
+from typing import List
 import torch
 from torch import nn
 
 
 class VisDescMatcher(nn.Module):
-    def forward(self, desc2d, idx2d, desc3d, idx3d):
+    def forward(
+        self,
+        desc2d: torch.Tensor,
+        idx2d: torch.Tensor,
+        desc3d: torch.Tensor,
+        idx3d: torch.Tensor,
+    ) -> List[torch.Tensor]:
         # Iterate each sample
         nb = len(torch.unique_consecutive(idx2d))
         scores_b = []
-        match_probs_b = []
         for ib in range(nb):
             mask2d = ib == idx2d
             mask3d = ib == idx3d

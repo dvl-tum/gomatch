@@ -1,10 +1,13 @@
+from typing import List, Optional
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
-def conv1d_layer(in_channel, out_channel, normalize="ins"):
-    layers = [nn.Conv1d(in_channel, out_channel, kernel_size=1)]
+def conv1d_layer(
+    in_channel: int, out_channel: int, normalize: Optional[str] = "ins"
+) -> nn.Sequential:
+    layers: List[nn.Module] = [nn.Conv1d(in_channel, out_channel, kernel_size=1)]
     if normalize == "ins":
         layers.append(nn.InstanceNorm1d(in_channel))
     if normalize and "bn" in normalize:
@@ -17,13 +20,13 @@ def conv1d_layer(in_channel, out_channel, normalize="ins"):
 class conv1d_residual_block(nn.Module):
     def __init__(
         self,
-        in_channel,
-        out_channel,
-        mid_channel=None,
-        normalize="ins",
-        activation="relu",
-        residual=True,
-    ):
+        in_channel: int,
+        out_channel: int,
+        mid_channel: Optional[int] = None,
+        normalize: Optional[str] = "ins",
+        activation: str = "relu",
+        residual: bool = True,
+    ) -> None:
         super().__init__()
         self.residual = residual
         mid_channel = out_channel if mid_channel is None else mid_channel
@@ -38,7 +41,7 @@ class conv1d_residual_block(nn.Module):
         )
         self.act = nn.LeakyReLU() if "leaky" in activation else nn.ReLU()
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x_residual = x
         x = self.preconv(x)
         x = self.conv1(x)
@@ -52,14 +55,14 @@ class conv1d_residual_block(nn.Module):
 class PointResNet(nn.Module):
     def __init__(
         self,
-        in_channel,
-        num_layers=12,
-        feat_channel=128,
-        mid_channel=128,
-        activation="relu",
-        normalize="ins",
-        residual=True,
-    ):
+        in_channel: int,
+        num_layers: int = 12,
+        feat_channel: int = 128,
+        mid_channel: int = 128,
+        activation: str = "relu",
+        normalize: Optional[str] = "ins",
+        residual: bool = True,
+    ) -> None:
         super().__init__()
 
         self.num_layers = num_layers
@@ -82,7 +85,7 @@ class PointResNet(nn.Module):
                 ),
             )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv_in(x)
         for i in range(self.num_layers):
             x = getattr(self, f"conv_{i}")(x)

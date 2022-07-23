@@ -1,8 +1,11 @@
+from typing import Optional, Tuple
 import torch
 
 
 class RegularisedOptimalTransport(torch.nn.Module):
-    def __init__(self, max_iters=20, thresh=1e-6, eps=0.1):
+    def __init__(
+        self, max_iters: int = 20, thresh: float = 1e-6, eps: float = 0.1
+    ) -> None:
         super().__init__()
 
         # Initialize params
@@ -10,7 +13,9 @@ class RegularisedOptimalTransport(torch.nn.Module):
         self.thresh = thresh
         self.eps = eps
 
-    def forward(self, cost, mu, nu):
+    def forward(
+        self, cost: torch.Tensor, mu: torch.Tensor, nu: torch.Tensor
+    ) -> torch.Tensor:
         P = sinkhorn_log(
             cost,
             mu,
@@ -22,7 +27,15 @@ class RegularisedOptimalTransport(torch.nn.Module):
         return P
 
 
-def sinkhorn_log(cost, mu, nu, eps=0.1, max_iters=50, thresh=1e-6, acc_factor=None):
+def sinkhorn_log(
+    cost: torch.Tensor,
+    mu: torch.Tensor,
+    nu: torch.Tensor,
+    eps: float = 0.1,
+    max_iters: int = 50,
+    thresh: float = 1e-6,
+    acc_factor: Optional[float] = None,
+) -> torch.Tensor:
     """Sinkhorn algorithm for regularized optimal transport in log space.
     Codes are adapated from https://github.com/gpeyre/SinkhornAutoDiff.
 
@@ -42,11 +55,11 @@ def sinkhorn_log(cost, mu, nu, eps=0.1, max_iters=50, thresh=1e-6, acc_factor=No
         lam = 0.5 ** 2 / (0.5 ** 2 + eps)
         tau = -acc_factor
 
-    def ave(u, u_prev):
+    def ave(u: torch.Tensor, u_prev: torch.Tensor) -> torch.Tensor:
         "Barycenter subroutine, used by kinetic acceleration through extrapolation."
         return tau * u + (1 - tau) * u_prev
 
-    def M(u, v):
+    def M(u: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
         "Modified cost for logarithmic updates"
         "$M_{ij} = (-c_{ij} + u_i + v_j) / \epsilon$"
         return (-cost + u.unsqueeze(-1) + v.unsqueeze(-2)) / eps
@@ -83,7 +96,9 @@ def sinkhorn_log(cost, mu, nu, eps=0.1, max_iters=50, thresh=1e-6, acc_factor=No
     return P
 
 
-def init_couplings_and_marginals(cost, bin_cost=None):
+def init_couplings_and_marginals(
+    cost: torch.Tensor, bin_cost: torch.Tensor
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     b, m, n = cost.shape
     one = cost.new([1])
     couplings = cost

@@ -1,3 +1,5 @@
+from typing import List, cast
+
 from bpnpnet.model.model import pairwiseL2Dist, STN3d
 from bpnpnet.model.yi2018cvpr.model import Net as FeatureExtractor
 from bpnpnet.model.yi2018cvpr.config import get_config
@@ -6,11 +8,11 @@ import torch.nn as nn
 from torch_scatter import scatter_sum
 
 from .ot import RegularisedOptimalTransport
-from gomatch.utils.batch_ops import batchify_b
+from ..utils.batch_ops import batchify_b
 
 
 class BlindPnP(nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.config_2d, _ = get_config()
         self.config_3d, _ = get_config()
@@ -25,7 +27,13 @@ class BlindPnP(nn.Module):
         # Initialize OT
         self.sinkhorn = RegularisedOptimalTransport()
 
-    def forward(self, p2d, p3d, num_points_2d, num_points_3d):
+    def forward(
+        self,
+        p2d: torch.Tensor,
+        p3d: torch.Tensor,
+        num_points_2d: torch.Tensor,
+        num_points_3d: torch.Tensor,
+    ) -> torch.Tensor:
         f2d = p2d
         f3d = p3d
 
@@ -54,18 +62,24 @@ class BlindPnP(nn.Module):
         r = M.new_zeros((b, m))  # bxm
         c = M.new_zeros((b, n))  # bxn
         for i in range(b):
-            r[i, : num_points_2d[i]] = 1.0 / num_points_2d[i].float()
-            c[i, : num_points_3d[i]] = 1.0 / num_points_3d[i].float()
+            r[i, : cast(int, num_points_2d[i])] = 1.0 / num_points_2d[i].float()
+            c[i, : cast(int, num_points_3d[i])] = 1.0 / num_points_3d[i].float()
         P = self.sinkhorn(M, r, c)
         return P
 
 
 class BPnPMatcher(nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.model = BlindPnP()
 
-    def forward(self, pts2d, idx2d, pts3d, idx3d):
+    def forward(
+        self,
+        pts2d: torch.Tensor,
+        idx2d: torch.Tensor,
+        pts3d: torch.Tensor,
+        idx3d: torch.Tensor,
+    ) -> List[torch.Tensor]:
         p2d = batchify_b(pts2d[:, :2], idx2d)
         p3d = batchify_b(pts3d, idx3d)
 
@@ -92,9 +106,15 @@ class BPnPMatcher(nn.Module):
 
 
 class BPnPNet(nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.matcher = BPnPMatcher()
 
-    def forward(self, pts2d, idx2d, pts3d, idx3d):
+    def forward(
+        self,
+        pts2d: torch.Tensor,
+        idx2d: torch.Tensor,
+        pts3d: torch.Tensor,
+        idx3d: torch.Tensor,
+    ) -> List[torch.Tensor]:
         return self.matcher(pts2d, idx2d, pts3d, idx3d)
