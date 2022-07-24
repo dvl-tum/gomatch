@@ -1,8 +1,10 @@
-import yaml
-import os
 from argparse import Namespace
+from typing import Any, Dict, Mapping, Sequence, Union
+import os
+
 import numpy as np
 import torch.utils.data as data
+import yaml
 
 from .data_processing import (
     load_scene_data,
@@ -11,7 +13,7 @@ from .data_processing import (
     generate_assignment_mask,
     collect_covis_p3d_data,
 )
-from gomatch.utils.geometry import points2d_to_bearing_vector
+from ..utils.geometry import points2d_to_bearing_vector
 
 FEATURE_DIRS = {
     "sift": "SIFT1024",
@@ -35,7 +37,9 @@ class BaseDataset(data.Dataset):
         random_topk=False,
     )
 
-    def __init__(self, config, split="train"):
+    def __init__(
+        self, config: Union[Namespace, Mapping[str, Any]], split: str = "train"
+    ) -> None:
         if isinstance(config, Namespace):
             config = vars(config)
         config = Namespace(**{**self.default_config, **config})
@@ -60,7 +64,7 @@ class BaseDataset(data.Dataset):
             )
             self._load_scene_data(dataset_conf)
 
-    def _load_scene_data(self, dataset_conf):
+    def _load_scene_data(self, dataset_conf: Namespace) -> None:
         self.data_dir = data_dir = os.path.join(
             self.data_root, dataset_conf.data_processed_dir
         )
@@ -85,7 +89,12 @@ class BaseDataset(data.Dataset):
         )
         self.sids, self.qids, self.ims, self.pts3d_data = data
 
-    def _construct_data(self, query, scene_pts3d, scene_ims):
+    def _construct_data(
+        self,
+        query: Namespace,
+        scene_pts3d: Sequence[np.ndarray],
+        scene_ims: Mapping[int, Namespace],
+    ) -> Dict[str, Any]:
         K, R, t, pts2d = query.K, query.R, query.t, query.kpts
 
         # Collect 3d data from topk retrival/covisible db images
@@ -164,7 +173,7 @@ class BaseDataset(data.Dataset):
             data["covis_ids"] = covis_ids
         return data
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Dict[str, Any]:
         sid = self.sids[index]
         qid = self.qids[index]
         query = self.ims[sid][qid]
@@ -177,10 +186,10 @@ class BaseDataset(data.Dataset):
         data = self._construct_data(query, scene_pts3d, scene_ims)
         return data
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.qids)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         fmt_str = f"\nDataset:{self.dataset} split={self.split} "
         fmt_str += f"scenes:{self.n_scenes} queries: {len(self.qids)}\n"
         fmt_str += f"Data processed dir: {self.data_dir}\n"

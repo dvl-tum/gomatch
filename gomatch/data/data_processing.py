@@ -1,34 +1,54 @@
+from argparse import Namespace
 import os
-import yaml
+from typing import (
+    Any,
+    Collection,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
+
 import numpy as np
 import torch
 
-from gomatch.utils.extract_matches import align_points2d
-from gomatch.utils.geometry import (
+
+from ..utils.extract_matches import align_points2d
+from ..utils.geometry import (
     points2d_to_bearing_vector,
     project_points3d,
     project3d_normalized,
 )
-from gomatch.utils.logger import get_logger
+from ..utils.logger import get_logger
+from ..utils.typing import PathT, TensorOrArrayOrList
 
-logger = get_logger(level="INFO", name="data_process")
+_logger = get_logger(level="INFO", name="data_process")
 
 
-def load_scene_data(data_file, scenes, scene3d_file, feature_dir, load_desc=False):
-    logger.info(f"Loading data file from {data_file}")
+def load_scene_data(
+    data_file: PathT,
+    scenes: Collection[str],
+    scene3d_file: PathT,
+    feature_dir: PathT,
+    load_desc: bool = False,
+) -> Tuple[List, List, Dict[str, Any], Dict[str, Any]]:
+    _logger.info(f"Loading data file from {data_file}")
     data_dict = np.load(data_file, allow_pickle=True).item()
 
     # Load entire 3d point data
-    logger.info(f"Loading scene 3D points from {scene3d_file} ...")
+    _logger.info(f"Loading scene 3D points from {scene3d_file} ...")
     pts3d_data = np.load(scene3d_file, allow_pickle=True).item()
-    logger.info(f"Done with 3D data loading.")
+    _logger.info(f"Done with 3D data loading.")
 
     # Load all query ids, scene ids and image data
     sids = []
     qids = []
     ims = {}
     num_pts3d = []
-    logger.info(
+    _logger.info(
         f"Fetching scene data for: {len(scenes)} scenes\nFeature dir:{feature_dir}"
     )
     for sid in scenes:
@@ -80,22 +100,22 @@ def load_scene_data(data_file, scenes, scene3d_file, feature_dir, load_desc=Fals
             # Later nned it to assign desc to 3d points
             im.aligned_i2ds = i2ds
 
-    logger.info(
+    _logger.info(
         f"Finished loading scenes: {len(pts3d_data)}, queries: {len(qids)} im.pts3d:{int(np.mean(num_pts3d))} #ims(pts3d <20)={(np.array(num_pts3d) < 20).sum()}"
     )
     return sids, qids, ims, pts3d_data
 
 
 def collect_covis_p3d_data(
-    query,
-    topk,
-    pts_data,
-    ims_data,
-    p3d_type="bvs",
-    npts=[10, 1024],
-    merge_pts3dm=False,
-    random_topk=False,
-):
+    query: Namespace,
+    topk: int,
+    pts_data: Sequence[np.ndarray],
+    ims_data: Mapping[int, Namespace],
+    p3d_type: str = "bvs",
+    npts: Tuple[int, int] = (0, 1024),
+    merge_pts3dm: bool = False,
+    random_topk: bool = False,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     npts_min, npts_max = npts
     topk_num = min(topk, len(query.topk))
     covis_im_ids = (
@@ -107,8 +127,8 @@ def collect_covis_p3d_data(
     # Collect 3d points from covis-k db ims
     db_pids = []
     pts3d = []
-    pts3dm = []
-    covis_ids = []
+    pts3dm_ = []
+    covis_ids_all = []
     for i, idx in enumerate(covis_im_ids):
         db_im = ims_data[idx]
         db_pids_i = db_im.pts3d
@@ -124,20 +144,20 @@ def collect_covis_p3d_data(
                 db_pids_i = np.random.choice(db_pids_i, npts_max, replace=False)
 
         # Collect data
-        covis_ids += [i] * len(db_pids_i)
+        covis_ids_all += [i] * len(db_pids_i)
         db_pids.append(db_pids_i)
         pts3d_i = np.array([pts_data[i][:3] for i in db_pids_i])
         pts3d.append(pts3d_i)
         if p3d_type == "bvs":
-            pts3dm.append(project3d_normalized(db_im.R, db_im.t, pts3d_i))
+            pts3dm_.append(project3d_normalized(db_im.R, db_im.t, pts3d_i))
         elif p3d_type == "visdesc":
-            pts3dm.append(db_im.descs[db_im.aligned_i2ds])
+            pts3dm_.append(db_im.descs[db_im.aligned_i2ds])
         elif p3d_type == "coords":
-            pts3dm.append(pts3d_i)
+            pts3dm_.append(pts3d_i)
     pts3d = np.concatenate(pts3d)
-    pts3dm = np.concatenate(pts3dm)
+    pts3dm = np.concatenate(pts3dm_)
     db_pids = np.concatenate(db_pids)
-    covis_ids = np.array(covis_ids)
+    covis_ids = np.array(covis_ids_all)
 
     # Merge k covis points
     if topk == 1:
@@ -151,7 +171,9 @@ def collect_covis_p3d_data(
     return pts3d_merged, pts3dm_merged, unmerge_mask, covis_ids
 
 
-def extract_covis_pts3d_ids(covis_ids, unmerge_mask):
+def extract_covis_pts3d_ids(
+    covis_ids: np.ndarray, unmerge_mask: np.ndarray
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     covis_pts3d_ids = []
     covis_pts3dm_ids = []
     start_idx = 0
@@ -168,7 +190,13 @@ def extract_covis_pts3d_ids(covis_ids, unmerge_mask):
     return covis_pts3d_ids, covis_pts3dm_ids
 
 
-def align_2d3d_points_normalized(pts2d, pts3d_proj, K, dist_thres, radial=None):
+def align_2d3d_points_normalized(
+    pts2d: np.ndarray,
+    pts3d_proj: np.ndarray,
+    K: np.ndarray,
+    dist_thres: Optional[float],
+    radial: Optional[float] = None,
+) -> np.ndarray:
     # Convert pts2d to normalized coordinates
     pts2d_normed = points2d_to_bearing_vector(pts2d, K, vec_dim=2, radial=radial)
     pts3d_proj_normed = points2d_to_bearing_vector(
@@ -179,8 +207,15 @@ def align_2d3d_points_normalized(pts2d, pts3d_proj, K, dist_thres, radial=None):
 
 
 def compute_gt_2d3d_match(
-    pts2d, pts3d, K, R, t, inls_thres=1, normalize=False, radial=None
-):
+    pts2d: np.ndarray,
+    pts3d: TensorOrArrayOrList,
+    K: np.ndarray,
+    R: TensorOrArrayOrList,
+    t: TensorOrArrayOrList,
+    inls_thres: Optional[float] = 1,
+    normalize: bool = False,
+    radial: Optional[float] = None,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     # Project 3d keypoints onto image plane
     pts2d_proj, valid = project_points3d(K, R, t, pts3d, radial=radial)
 
@@ -207,12 +242,18 @@ def compute_gt_2d3d_match(
     return i2ds, i3ds, o2ds, o3ds
 
 
-def enforce_outlier_rate_and_npts(ni, no2d, no3d, orate, npts=-1):
+def enforce_outlier_rate_and_npts(
+    ni: int,
+    no2d: int,
+    no3d: int,
+    orate: Union[float, Tuple[float, float]],
+    npts: Union[int, Tuple[int, int]] = -1,
+) -> Tuple[int, int, int]:
     if isinstance(orate, float):
-        orate = [orate, orate]
+        orate = (orate, orate)
     ormin, ormax = orate
     if isinstance(npts, int):
-        npts = [0, npts]
+        npts = (0, npts)
     npts_min, npts_max = npts
 
     # Compute inlier and outlier numbers to fulfil the range
@@ -238,7 +279,14 @@ def enforce_outlier_rate_and_npts(ni, no2d, no3d, orate, npts=-1):
     return ni, no2d, no3d
 
 
-def subsample_points_indices(i2ds, i3ds, o2ds, o3ds, orate, npts=-1):
+def subsample_points_indices(
+    i2ds: np.ndarray,
+    i3ds: np.ndarray,
+    o2ds: np.ndarray,
+    o3ds: np.ndarray,
+    orate: Union[float, Tuple[float, float]],
+    npts: Union[int, Tuple[int, int]] = -1,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     # Supsample data points to fulfil outlier rate and max points
     ni, no2d, no3d = len(i2ds), len(o2ds), len(o3ds)
     ni_, no2d_, no3d_ = enforce_outlier_rate_and_npts(ni, no2d, no3d, orate, npts)
@@ -266,7 +314,7 @@ def subsample_points_indices(i2ds, i3ds, o2ds, o3ds, orate, npts=-1):
     return pts2d_ids, pts3d_ids, matches
 
 
-def generate_assignment_mask(matches, n3d):
+def generate_assignment_mask(matches: np.ndarray, n3d: int) -> np.ndarray:
     n2d = len(matches)
     mask = np.zeros((n3d + 1, n2d + 1), dtype=bool)
 

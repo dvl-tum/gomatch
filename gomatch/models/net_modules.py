@@ -9,7 +9,7 @@ from ..utils.batch_ops import batchify_tile_b, flatten_b
 
 
 class PointResNetEncoder(PointResNet):
-    def forward(self, points: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
+    def forward(self, points: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:  # type: ignore
         # batchify with tiling
         points_b = batchify_tile_b(points, idx)
         out = super().forward(points_b.transpose(-1, -2)).transpose(-2, -1)

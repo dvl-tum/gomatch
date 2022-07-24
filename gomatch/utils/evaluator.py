@@ -1,20 +1,8 @@
 from argparse import Namespace
 from collections import defaultdict
-from pathlib import Path
 import random
 import time
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Any, List, Mapping, Optional, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -161,7 +149,7 @@ class MatcherEvaluator:
     def match_sample_separate_covis(
         self,
         pts2dm: TensorOrArray,
-        pts3dm: TensorOrArray,
+        pts3dm: np.ndarray,
         pts3d: np.ndarray,
         unmerge_mask: np.ndarray,
         covis_ids: np.ndarray,

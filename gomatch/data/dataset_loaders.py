@@ -1,23 +1,23 @@
 from argparse import Namespace
-from copy import deepcopy
-import numpy as np
+from typing import Any, Dict, Iterable, Mapping, Tuple, Union
+
 import torch
 from torch.utils.data import DataLoader
 
 from .datasets import BaseDataset
-from gomatch.utils.logger import get_logger
+from ..utils.logger import get_logger
 
-logger = get_logger(level="INFO", name="data_loader")
+_logger = get_logger(level="INFO", name="data_loader")
 
 
-def collate(all_data):
+def collate(all_data: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
     # Ignore samples with no pts
     data = []
     for d in all_data:
         if len(d["pts2d"]) > 0:
             data.append(d)
     if len(data) == 0:
-        batched = dict(name=None)
+        batched: Dict[str, Any] = dict(name=None)
         return batched
 
     # Batch data contents
@@ -63,22 +63,28 @@ def collate(all_data):
 
 
 def init_data_loader(
-    config, split="train", batch=16, overfit=-1, outlier_rate=None, npts=None
-):
+    config: Namespace,
+    split: str = "train",
+    batch: int = 16,
+    overfit: int = -1,
+    outlier_rate: Union[float, Tuple[float, float], None] = None,
+    npts: Union[int, Tuple[int, int], None] = None,
+) -> DataLoader:
     is_training = "train" in split
     batch = batch if "batch" not in config else config.batch
     num_workers = 0 if "num_workers" not in config else config.num_workers
-    logger.info(
+    _logger.info(
         f"Init data loader: split={split} training={is_training} batch={batch}..."
     )
 
     # Load dataset
-    dataset = BaseDataset(config, split=split)
+    dataset: torch.utils.data.Dataset = BaseDataset(config, split=split)
+    assert isinstance(dataset, BaseDataset)
     if outlier_rate is not None:
         dataset.outlier_rate = outlier_rate
     if npts is not None:
         dataset.npts = npts
-    logger.info(dataset)
+    _logger.info(dataset)
 
     if overfit > 0:
         dataset, _ = torch.utils.data.random_split(
