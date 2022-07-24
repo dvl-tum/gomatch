@@ -1,29 +1,48 @@
-from collections import defaultdict
 from argparse import Namespace
-from tqdm import tqdm
-import time
+from collections import defaultdict
+from pathlib import Path
 import random
+import time
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
-import torch
 import numpy as np
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
-from .metrics import compute_metrics_sample, compute_metrics_batch, summarize_metrics
 from .extract_matches import mutual_assignment
 from .logger import get_logger
-from gomatch import models
-from gomatch.data.data_processing import extract_covis_pts3d_ids
+from .metrics import compute_metrics_sample, compute_metrics_batch, summarize_metrics
+from .typing import Device, PathT, TensorOrArray
+from .. import models
+from ..data.datasets import BaseDataset
+from ..data.data_processing import extract_covis_pts3d_ids
 
-logger = get_logger(level="INFO", name="evaluator")
+_logger = get_logger(level="INFO", name="evaluator")
 
 
-def seed_everything(seed):
+def seed_everything(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
 
-def prepare_sample_inputs(pts2d, pts3d, device):
+def prepare_sample_inputs(
+    pts2d: TensorOrArray, pts3d: TensorOrArray, device: Device
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     if isinstance(pts2d, np.ndarray):
         pts2d = torch.from_numpy(pts2d)
     if isinstance(pts3d, np.ndarray):
@@ -36,7 +55,7 @@ def prepare_sample_inputs(pts2d, pts3d, device):
 
 
 class GenericModelWrapper(torch.nn.Module):
-    def __init__(self, config):
+    def __init__(self, config: Namespace):
         super().__init__()
         if config.matcher_class == "BPnPMatcher":
             self.matcher = models.BPnPMatcher()
@@ -47,27 +66,33 @@ class GenericModelWrapper(torch.nn.Module):
                 att_layers=config.att_layers,
             )
 
-    def forward(self, pts2d, idx2d, pts3d, idx3d):
+    def forward(
+        self,
+        pts2d: torch.Tensor,
+        idx2d: torch.Tensor,
+        pts3d: torch.Tensor,
+        idx3d: torch.Tensor,
+    ) -> Union[List[torch.Tensor], Tuple[List[torch.Tensor], List[torch.Tensor]]]:
         return self.matcher(pts2d, idx2d, pts3d, idx3d)
 
 
-def load_matcher_from_ckpt(ckpt_path):
+def load_matcher_from_ckpt(ckpt_path: PathT) -> Tuple[nn.Module, Namespace]:
     ckpt = torch.load(ckpt_path)
     config = Namespace(**ckpt["hyper_parameters"])
     model = GenericModelWrapper(config)
-    logger.info(f"Load model from {ckpt_path}")
-    logger.info(
+    _logger.info(f"Load model from {ckpt_path}")
+    _logger.info(
         f"matcher={config.matcher_class} ep={ckpt['epoch']} step={ckpt['global_step']}"
     )
 
     # Load state dict
     load_state = model.load_state_dict(ckpt["state_dict"])
-    logger.info(f"Load state dict: {load_state}")
+    _logger.info(f"Load state dict: {load_state}")
 
     # Get inner matcher
     matcher = model.matcher
     matcher.eval()
-    logger.info(
+    _logger.info(
         f"Init matcher(p3d_type={config.p3d_type}, share_kp2d_enc={config.share_kp2d_enc}, "
         f"att_layers={config.att_layers})"
     )
@@ -77,14 +102,14 @@ def load_matcher_from_ckpt(ckpt_path):
 class MatcherEvaluator:
     def __init__(
         self,
-        vismatch=False,
-        ckpt_path=None,
-        sc_thres=0.5,
-        ransac_thres=0.001,
-        iterations_count=1000,
-        confidence=0.99,
-        oracle=False,
-    ):
+        vismatch: bool = False,
+        ckpt_path: Optional[PathT] = None,
+        sc_thres: float = 0.5,
+        ransac_thres: float = 0.001,
+        iterations_count: int = 1000,
+        confidence: float = 0.99,
+        oracle: bool = False,
+    ) -> None:
         torch.set_grad_enabled(False)
         self.device = torch.device(
             "cuda:{}".format(0) if torch.cuda.is_available() else "cpu"
@@ -94,7 +119,7 @@ class MatcherEvaluator:
         self.ransac_thres = ransac_thres
         self.iterations_count = iterations_count
         self.confidence = confidence
-        self.metrics = defaultdict(list)
+        self.metrics: defaultdict[str, Any] = defaultdict(list)
         self.list2device = lambda x: [v.to(self.device) for v in x]
 
         # Initialize model
@@ -103,17 +128,23 @@ class MatcherEvaluator:
             self.p3d_type = "coords"
         else:
             if vismatch:
-                matcher = models.VisDescMatcher()
+                matcher: nn.Module = models.VisDescMatcher()
                 self.p3d_type = "visdesc"
             else:
+                assert ckpt_path is not None
                 matcher, config = load_matcher_from_ckpt(ckpt_path)
                 self.p3d_type = config.p3d_type
             self.matcher = matcher.to(self.device).eval()
         self.cls = isinstance(self.matcher, models.OTMatcherCls)
 
-    def match_sample(self, pts2dm, pts3dm):
+    def match_sample(
+        self, pts2dm: TensorOrArray, pts3dm: TensorOrArray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         inputs = prepare_sample_inputs(pts2dm, pts3dm, self.device)
         t0 = time.time()
+        assert (
+            self.matcher is not None
+        ), "Unable to call `match_sample` if the evaluator is in oracle mode."
         preds = self.matcher(*inputs)
         self.metrics["match_time"].append(time.time() - t0)
         if self.cls:
@@ -128,15 +159,23 @@ class MatcherEvaluator:
         return match_est, match_scs
 
     def match_sample_separate_covis(
-        self, pts2dm, pts3dm, pts3d, unmerge_mask, covis_ids, debug=False
-    ):
+        self,
+        pts2dm: TensorOrArray,
+        pts3dm: TensorOrArray,
+        pts3d: np.ndarray,
+        unmerge_mask: np.ndarray,
+        covis_ids: np.ndarray,
+        debug: bool = False,
+    ) -> torch.Tensor:
+        # TODO: debug parameter is not accessed
+
         # Extract pts3d ids for each covis pair inputs
         covis_pts3d_ids, covis_pts3dm_ids = extract_covis_pts3d_ids(
             covis_ids, unmerge_mask
         )
 
         # Initialize a single matching score matrix for k covis pairs
-        matches_scores = np.zeros((len(pts3d), len(pts2dm)), dtype=np.float)
+        matches_scores = np.zeros((len(pts3d), len(pts2dm)), dtype=float)
 
         # Match per query-covis pair
         for pts3d_ids, pts3dm_ids in zip(covis_pts3d_ids, covis_pts3dm_ids):
@@ -157,7 +196,9 @@ class MatcherEvaluator:
         matches_est = matches_scores > 0
         return torch.from_numpy(matches_est).to(self.device)
 
-    def eval_batch_merge_before_match(self, data, debug=False):
+    def eval_batch_merge_before_match(
+        self, data: Mapping[str, torch.Tensor], debug: bool = False
+    ) -> None:
         """Perform matching on 3D data merged from k covis views.
         In this case, 3D data is already merged within the data loader.
         The merged data has the same format as loading data from a single
@@ -172,6 +213,9 @@ class MatcherEvaluator:
 
             # Matching
             t0 = time.time()
+            assert (
+                self.matcher is not None
+            ), "Unable to call `eval_batch_merge_before_match` if the evaluator is in oracle mode."
             preds = self.matcher(*inputs)
             self.metrics["match_time"].append(time.time() - t0)
         else:
@@ -192,7 +236,9 @@ class MatcherEvaluator:
             confidence=self.confidence,
         )
 
-    def eval_batch_merge_after_match(self, data, debug=False):
+    def eval_batch_merge_after_match(
+        self, data: Mapping[str, Any], debug: bool = False
+    ) -> None:
         bids = torch.unique_consecutive(data["idx2d"])
         i = 0
         for bid in bids:
@@ -245,15 +291,16 @@ class MatcherEvaluator:
                 confidence=self.confidence,
             )
 
-    def eval_data_loader(self, data_loader, debug=False):
+    def eval_data_loader(self, data_loader: DataLoader, debug: bool = False) -> None:
         seed_everything(933)
         self.clear_metrics()
 
-        self.metrics["n_queries"] = len(data_loader.dataset)
-        merge_before_match = data_loader.dataset.merge_p3dm
-        logger.info(f">>>Start evaluation..")
-        logger.info(data_loader.dataset)
-        logger.info(
+        dataset = cast(BaseDataset, data_loader.dataset)
+        self.metrics["n_queries"] = len(dataset)
+        merge_before_match = dataset.merge_p3dm
+        _logger.info(f">>>Start evaluation..")
+        _logger.info(dataset)
+        _logger.info(
             f"Model: {self.matcher.__class__.__name__} sc_thres={self.sc_thres} ransac_thres={self.ransac_thres} merge_before_match={merge_before_match}"
         )
         t0 = time.time()
@@ -265,14 +312,10 @@ class MatcherEvaluator:
             if debug and i >= 5:
                 break
         self.summarize_eval()
-        logger.info(f"Evaluation finished, total runtime: {(time.time()-t0):.2f}s.")
+        _logger.info(f"Evaluation finished, total runtime: {(time.time()-t0):.2f}s.")
 
-    def clear_metrics(
-        self,
-    ):
+    def clear_metrics(self) -> None:
         self.metrics = defaultdict(list)
 
-    def summarize_eval(
-        self,
-    ):
+    def summarize_eval(self) -> None:
         summarize_metrics(self.metrics)

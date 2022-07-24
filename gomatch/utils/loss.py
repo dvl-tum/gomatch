@@ -1,11 +1,20 @@
+from collections import defaultdict
+from typing import Dict, Mapping, Tuple, Union
+
 import torch
 import torch.nn as nn
-from collections import defaultdict
-from .geometry import project3d_normalized, project_points3d
-from .metrics import io_metric, reprojection_err
+
+from .geometry import project3d_normalized
+from .metrics import io_metric
 
 
-def compute_loss(data, preds, opt_inliers_only=False, cls=False, rpthres=1):
+def compute_loss(
+    data: Mapping[str, torch.Tensor],
+    preds: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
+    opt_inliers_only: bool = False,
+    cls: bool = False,
+    rpthres: float = 1,
+) -> Dict[str, torch.Tensor]:
     # preds: ot_scores, *match_probs_b
     bids = torch.unique_consecutive(data["idx2d"])
     i = 0

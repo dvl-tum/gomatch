@@ -1,10 +1,13 @@
+from typing import Optional, Tuple
+
 import numpy as np
+from scipy.spatial.ckdtree import cKDTree
 import torch
 
-from scipy.spatial.ckdtree import cKDTree
+from .typing import TensorOrArray
 
 
-def mutual_assignment(match_scs):
+def mutual_assignment(match_scs: TensorOrArray) -> np.ndarray:
     if isinstance(match_scs, torch.Tensor):
         match_scs = match_scs.cpu().data.numpy()
 
@@ -41,7 +44,12 @@ def mutual_assignment(match_scs):
     return assign_mask
 
 
-def cal_mutual_nn_dists_kdtrees(nn12, nn21, dist12, threshold=None):
+def cal_mutual_nn_dists_kdtrees(
+    nn12: np.ndarray,
+    nn21: np.ndarray,
+    dist12: np.ndarray,
+    threshold: Optional[float] = None,
+) -> Tuple[np.ndarray, np.ndarray]:
     # Mutual nearest matches wrt min distances
     ids1 = np.arange(0, len(nn12))
     mutual_mask = ids1 == nn21[nn12]
@@ -56,7 +64,9 @@ def cal_mutual_nn_dists_kdtrees(nn12, nn21, dist12, threshold=None):
     return match_ids, match_dists
 
 
-def align_points2d(pts1, pts2, dist_thres=None):
+def align_points2d(
+    pts1: np.ndarray, pts2: np.ndarray, dist_thres: Optional[float] = None
+) -> np.ndarray:
     # Measure pair-wise distances
     tree1 = cKDTree(pts1)
     tree2 = cKDTree(pts2)

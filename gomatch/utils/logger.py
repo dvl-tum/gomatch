@@ -1,12 +1,17 @@
 import logging
+from typing import Optional
+
+from .typing import PathT
 
 
-def get_logger(level="INFO", log_path=None, name=None):
+def get_logger(
+    level: str = "INFO", log_path: Optional[PathT] = None, name: Optional[str] = None
+) -> logging.Logger:
     logger = logging.getLogger(name)
 
     if not logger.hasHandlers():
         # Initialize the logger
-        level = logging.__dict__[level]
+        level = logging.__dict__[level]  # TODO: fix this
         logger.setLevel(level)
         formatter = logging.Formatter(
             "[%(asctime)s|%(name)s|%(levelname)s]: %(message)s", "%Y-%m-%d %H:%M:%S"

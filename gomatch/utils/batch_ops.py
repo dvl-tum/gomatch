@@ -1,8 +1,12 @@
+from typing import Union, cast
+
 import torch
 from torch_scatter import scatter_sum
 
 
-def batchify_b(pts, batch, value=0):
+def batchify_b(
+    pts: torch.Tensor, batch: torch.Tensor, value: Union[int, float, bool] = 0
+) -> torch.Tensor:
     sizes = scatter_sum(torch.ones_like(batch), batch)
     out = torch.full(
         (len(sizes), sizes.max(), pts.size(-1)),
@@ -21,7 +25,7 @@ def batchify_b(pts, batch, value=0):
     return out
 
 
-def batchify_tile_b(pts, batch):
+def batchify_tile_b(pts: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
     sizes = scatter_sum(torch.ones_like(batch), batch)
     size_max = sizes.max()
     out = torch.empty(
@@ -29,13 +33,13 @@ def batchify_tile_b(pts, batch):
     )
 
     for bid, size in enumerate(sizes):
-        out[bid] = pts[bid == batch].repeat(torch.ceil(size_max / size).int(), 1)[
-            :size_max
-        ]
+        out[bid] = pts[bid == batch].repeat(
+            cast(int, torch.ceil(size_max / size).int()), 1
+        )[:size_max]
     return out
 
 
-def flatten_b(pts, batch):
+def flatten_b(pts: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
     sizes = scatter_sum(torch.ones_like(batch), batch)
     idx = torch.arange(len(batch), dtype=batch.dtype, device=batch.device)
     start_idx = torch.tensor(

@@ -1,9 +1,13 @@
-import numpy as np
+from typing import Optional, Tuple, Union
+
 from cv2 import SOLVEPNP_AP3P, Rodrigues, solvePnPRansac, solvePnPRefineLM
+import numpy as np
 from torch import Tensor
 
+from .typing import TensorOrArray, TensorOrArrayOrList
 
-def distort(k, u, v):
+
+def distort(k: float, u: np.ndarray, v: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """COLMAP - src/base/camera_models.h:747"""
     u2 = u * u
     v2 = v * v
@@ -14,7 +18,7 @@ def distort(k, u, v):
     return du, dv
 
 
-def undistort(k, u, v):
+def undistort(k: float, u: np.ndarray, v: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     dtype = u.dtype
     u, v = u.astype(np.float64), v.astype(np.float64)
 
@@ -67,17 +71,25 @@ def undistort(k, u, v):
     return u, v
 
 
-def get_numpy(data):
+def get_numpy(data: TensorOrArrayOrList) -> np.ndarray:
     if isinstance(data, Tensor):
-        data = data.cpu().data.numpy()
+        out = data.cpu().data.numpy()
     elif isinstance(data, list):
-        data = np.array(data)
+        out = np.array(data)
     else:
-        assert isinstance(data, np.ndarray)
-    return data
+        out = data
+
+    assert isinstance(out, np.ndarray)
+    return out
 
 
-def project3d_normalized(R, t, pts3d, radial=None, return_valid=False):
+def project3d_normalized(
+    R: TensorOrArray,
+    t: TensorOrArray,
+    pts3d: TensorOrArray,
+    radial: Optional[float] = None,
+    return_valid: bool = False,
+) -> Union[TensorOrArray, Tuple[TensorOrArray, TensorOrArray]]:
     # Move points to camera space
     pts3d_cam = pts3d @ R.T + t
 
@@ -86,6 +98,9 @@ def project3d_normalized(R, t, pts3d, radial=None, return_valid=False):
 
     # Distort if needed
     if radial is not None:
+        assert isinstance(
+            pts3d_norm, np.ndarray
+        ), "Unable to apply radial distortion with torch.Tensor arguments"
         du, dv = distort(radial, pts3d_norm[:, 0], pts3d_norm[:, 1])
         pts3d_norm = pts3d_norm + np.stack([du, dv, np.zeros_like(dv)], axis=1)
 
@@ -97,7 +112,13 @@ def project3d_normalized(R, t, pts3d, radial=None, return_valid=False):
         return pts3d_norm[:, :2]
 
 
-def project_points3d(K, R, t, pts3d, radial=None):
+def project_points3d(
+    K: TensorOrArrayOrList,
+    R: TensorOrArrayOrList,
+    t: TensorOrArrayOrList,
+    pts3d: TensorOrArrayOrList,
+    radial: Optional[float] = None,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Project 3D points to 2D points using extrinsics and intrinsics
     Args:
         - K: camera intrinc matrix (3, 3)
@@ -118,6 +139,8 @@ def project_points3d(K, R, t, pts3d, radial=None):
     pts2d_norm, valid = project3d_normalized(
         R, t, pts3d, radial=radial, return_valid=True
     )
+    assert isinstance(pts2d_norm, np.ndarray)
+    assert isinstance(valid, np.ndarray)
     pts3d_norm = np.concatenate([pts2d_norm, np.ones((len(pts2d_norm), 1))], axis=1)
 
     # Transform to pixel space. Last column is already guaranteed to be set to 1
@@ -125,7 +148,9 @@ def project_points3d(K, R, t, pts3d, radial=None):
     return pixels[:, :2], valid
 
 
-def points2d_to_bearing_vector(pts2d, K, vec_dim=2, radial=None):
+def points2d_to_bearing_vector(
+    pts2d: np.ndarray, K: np.ndarray, vec_dim: int = 2, radial: Optional[float] = None
+) -> np.ndarray:
     pts2d_homo = np.concatenate([pts2d, np.ones((len(pts2d), 1))], axis=-1)
     bvecs = np.linalg.solve(K, pts2d_homo.T)
 
@@ -136,12 +161,12 @@ def points2d_to_bearing_vector(pts2d, K, vec_dim=2, radial=None):
 
 
 def estimate_pose(
-    pts2d_bvs,
-    pts3d,
-    ransac_thres=0.001,
+    pts2d_bvs: TensorOrArray,
+    pts3d: TensorOrArray,
+    ransac_thres: float = 0.001,
     iterations_count: int = 1000,
     confidence: float = 0.99,
-):
+) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     if isinstance(pts2d_bvs, Tensor):
         pts2d_bvs = pts2d_bvs.cpu().data.numpy()
     if isinstance(pts3d, Tensor):
@@ -151,6 +176,8 @@ def estimate_pose(
         return None
 
     # Ensure sanitized input for OpenCV
+    assert isinstance(pts2d_bvs, np.ndarray)
+    assert isinstance(pts3d, np.ndarray)
     pts2d_bvs = pts2d_bvs.astype(np.float64)
     pts3d = pts3d.astype(np.float64)
 

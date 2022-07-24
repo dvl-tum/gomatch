@@ -1,16 +1,36 @@
 from argparse import Namespace
-import torch
-import numpy as np
 from math import pi
+from typing import (
+    Any,
+    Collection,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
-from .geometry import estimate_pose, project3d_normalized, project_points3d
+import numpy as np
+import torch
+
 from .extract_matches import mutual_assignment
-from gomatch.utils.logger import get_logger
+from .geometry import estimate_pose, project3d_normalized, project_points3d
+from .logger import get_logger
+from .typing import TensorOrArray
 
-logger = get_logger(level="INFO", name="metrics")
+_logger = get_logger(level="INFO", name="metrics")
 
-
-def check_data_hist(data_list, bins, tag="", return_hist=False):
+# TODO: fix the return interface
+def check_data_hist(
+    data_list: Collection[np.ndarray],
+    bins: Sequence[float],
+    tag: str = "",
+    return_hist: bool = False,
+) -> Union[str, np.ndarray, Tuple[str, None], Tuple[np.ndarray, str]]:
     if not data_list:
         if return_hist:
             return "", None
@@ -37,22 +57,29 @@ def check_data_hist(data_list, bins, tag="", return_hist=False):
     return hist_print
 
 
-def cal_error_auc(errors, thresholds):
+def cal_error_auc(errors: Sequence[float], thresholds: Collection[float]) -> np.ndarray:
     if len(errors) == 0:
         return np.zeros(len(thresholds))
     N = len(errors)
-    errors = np.append([0.0], np.sort(errors))
+    errors_ = np.append([0.0], np.sort(errors))
     recalls = np.arange(N + 1) / N
-    aucs = []
+    aucs: List[float] = []
     for thres in thresholds:
-        last_index = np.searchsorted(errors, thres)
+        last_index = np.searchsorted(errors_, thres)
+        assert isinstance(last_index, int)
         rcs_ = np.append(recalls[:last_index], recalls[last_index - 1])
-        errs_ = np.append(errors[:last_index], thres)
+        errs_ = np.append(errors_[:last_index], thres)
         aucs.append(np.trapz(rcs_, x=errs_) / thres)
     return np.array(aucs)
 
 
-def reprojection_err_normalized(matches_est, pts2d_bvs, pts3d, R_gt, t_gt):
+def reprojection_err_normalized(
+    matches_est: torch.Tensor,
+    pts2d_bvs: torch.Tensor,
+    pts3d: torch.Tensor,
+    R_gt: torch.Tensor,
+    t_gt: torch.Tensor,
+) -> torch.Tensor:
     i3d, i2d = torch.where(matches_est)
 
     # Meaure reprojection err on normalized coordinates
@@ -61,7 +88,14 @@ def reprojection_err_normalized(matches_est, pts2d_bvs, pts3d, R_gt, t_gt):
     return match_dists
 
 
-def reprojection_err(matches_est, pts2d_pix, pts3d, K, R_gt, t_gt):
+def reprojection_err(
+    matches_est: torch.Tensor,
+    pts2d_pix: torch.Tensor,
+    pts3d: torch.Tensor,
+    K: TensorOrArray,
+    R_gt: TensorOrArray,
+    t_gt: TensorOrArray,
+) -> torch.Tensor:
     i3d, i2d = torch.where(matches_est)
 
     # Meaure reprojection err on image coordinates
@@ -70,7 +104,9 @@ def reprojection_err(matches_est, pts2d_pix, pts3d, K, R_gt, t_gt):
     return match_dists
 
 
-def pose_err(R, R_gt, t, t_gt):
+def pose_err(
+    R: TensorOrArray, R_gt: TensorOrArray, t: TensorOrArray, t_gt: TensorOrArray
+) -> Tuple[torch.Tensor, torch.Tensor]:
     if isinstance(R_gt, np.ndarray):
         R_gt = torch.from_numpy(R_gt).to(torch.float32)
     if isinstance(t_gt, np.ndarray):
@@ -84,7 +120,9 @@ def pose_err(R, R_gt, t, t_gt):
     return R_err, t_err
 
 
-def io_metric(in_est, in_gt, all_metrics=False):
+def io_metric(
+    in_est: torch.Tensor, in_gt: torch.Tensor, all_metrics: bool = False
+) -> Dict[str, torch.Tensor]:
     # Inlier/outlier classification metrics
     tp = torch.sum(in_est & in_gt)
     pgt = torch.sum(in_gt)
@@ -103,21 +141,21 @@ def io_metric(in_est, in_gt, all_metrics=False):
 
 
 def compute_metrics_sample(
-    metrics,
-    matches_est,
-    matches_gt,
-    pts2d,
-    pts2d_pix,
-    pts3d,
-    R_gt,
-    t_gt,
-    K,
-    ransac_thres=0.001,
-    is_test=False,
-    print_out=True,
+    metrics: Mapping[str, List],
+    matches_est: torch.Tensor,
+    matches_gt: torch.Tensor,
+    pts2d: torch.Tensor,
+    pts2d_pix: torch.Tensor,
+    pts3d: torch.Tensor,
+    R_gt: TensorOrArray,
+    t_gt: TensorOrArray,
+    K: torch.Tensor,
+    ransac_thres: float = 0.001,
+    is_test: bool = False,
+    print_out: bool = True,
     iterations_count: int = 1000,
     confidence: float = 0.99,
-):
+) -> None:
     n2d, n3d = len(pts2d), len(pts3d)
     if is_test:
         metrics["n2d"].append(n2d)
@@ -137,8 +175,9 @@ def compute_metrics_sample(
         confidence=confidence,
     )
     if not pose_res:
-        R_err, t_err = -1.0, -1.0
-        inliers = []
+        R_err: Union[float, torch.Tensor] = -1.0
+        t_err: Union[float, torch.Tensor] = -1.0
+        inliers: Union[List, np.ndarray] = []
     else:
         R, t, inliers = pose_res
         R_err, t_err = pose_err(R, R_gt, t, t_gt)
@@ -163,25 +202,25 @@ def compute_metrics_sample(
     metrics["reproj_gt3d_estpose"].append(reproj_errs)
 
     if print_out:
-        logger.info(
+        _logger.info(
             f"i3d={len(i3d)} R_err={R_err:.2f} t_err={t_err:.2f} inls={len(inliers)} "
             f"Npts={len(pts2d)}/{len(pts3d)} n_matches={len(i3d)}"
         )
 
 
 def compute_metrics_batch(
-    metrics,
-    data,
-    preds,
-    cls=False,
-    sc_thres=-1,
-    ransac_thres=0.001,
+    metrics: MutableMapping[str, Any],
+    data: Mapping[str, torch.Tensor],
+    preds: Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]],
+    cls: bool = False,
+    sc_thres: float = -1,
+    ransac_thres: float = 0.001,
     iterations_count: int = 1000,
     confidence: float = 0.99,
-    is_test=False,
-    oracle=False,
-    debug=False,
-):
+    is_test: bool = False,
+    oracle: bool = False,
+    debug: bool = False,
+) -> Optional[Dict[str, torch.Tensor]]:
     bids = torch.unique_consecutive(data["idx2d"])
     i = 0
     if cls:
@@ -203,6 +242,8 @@ def compute_metrics_batch(
             matches_est = torch.zeros_like(ot_scores_b[bid]).bool()
             if cls:
                 # Compute matches based on cls scores
+                i3ds: TensorOrArray
+                i2ds: TensorOrArray
                 i3ds, i2ds = torch.where(match_probs_b[bid] > sc_thres)
             else:
                 # Compute matches based on OT scores
@@ -234,7 +275,7 @@ def compute_metrics_batch(
             print_out=debug,
         )
     if is_test:
-        return
+        return None
 
     # Reduce metrics
     raw_pose_errs = dict()
@@ -247,12 +288,18 @@ def compute_metrics_batch(
     return raw_pose_errs
 
 
+# TODO: revise the return interface
 def summarize_metrics(
-    metrics,
-    auc_thresholds=[1, 5, 10, 15, 50, 100, 500],
-    pose_thresholds=[(0.05, 5), (0.25, 2), (0.5, 5), (1.0, 10)],
-    return_qs=False,
-):
+    metrics: Union[Dict[str, Union[int, np.ndarray]], Namespace],
+    auc_thresholds: Collection[float] = (1, 5, 10, 15, 50, 100, 500),
+    pose_thresholds: Iterable[Tuple[float, float]] = (
+        (0.05, 5),
+        (0.25, 2),
+        (0.5, 5),
+        (1.0, 10),
+    ),
+    return_qs: bool = False,
+) -> Union[np.ndarray, Tuple[torch.Tensor, torch.Tensor]]:
     np.set_printoptions(precision=2)
 
     # Convert to namespace for easy reference
@@ -265,14 +312,14 @@ def summarize_metrics(
     failed = int(len(metrics.t_err) - pose_mask.sum())
 
     # Query statis
-    logger.info(
+    _logger.info(
         f"Query total={n_queries} "
         f"evaluated={len(metrics.t_err)} "
         f"failed={failed}"
     )
 
     # Match statis
-    logger.info(
+    _logger.info(
         f"Mean n2d={np.mean(metrics.n2d):.0f} "
         f"n3d={np.mean(metrics.n3d):.0f} "
         f"n_matches={np.mean(metrics.n_matches):.0f}"
@@ -282,7 +329,7 @@ def summarize_metrics(
     quantile_ratios = torch.tensor([0.25, 0.5, 0.75])
     t_qs = torch.quantile(torch.from_numpy(metrics.t_err[pose_mask]), quantile_ratios)
     R_qs = torch.quantile(torch.from_numpy(metrics.R_err[pose_mask]), quantile_ratios)
-    logger.info(
+    _logger.info(
         f"R_qs={R_qs.data.numpy()} t_qs={t_qs.data.numpy()}m/{t_qs.data.numpy()*100}cm"
     )
 
@@ -296,7 +343,7 @@ def summarize_metrics(
         / n_queries
         for t_th, R_th in pose_thresholds
     ]
-    logger.info(
+    _logger.info(
         "Localize recall@(<5cm5deg/0.25m2deg/0.5m5deg/1m10deg): "
         f"{localized[0]:.2f}/{localized[1]:.2f}/{localized[2]:.2f}/{localized[3]:.2f} %"
     )
@@ -307,7 +354,7 @@ def summarize_metrics(
         bins=[0, 0.5, 1, 5, 10, 20, 100, 1000],
         tag=f"Reproj",
     )
-    logger.info(f"\n{reproj_hists}")
+    _logger.info(f"\n{reproj_hists}")
 
     # Compute reproj, recall AUC
     mean_reproj_errs = [np.mean(errs) for errs in metrics.reproj_gt3d_estpose]
@@ -316,14 +363,14 @@ def summarize_metrics(
     # Add vals for failed samples
     mean_reproj_errs += [np.inf] * (n_queries - len(mean_reproj_errs))
     reproj_auc = 100 * cal_error_auc(mean_reproj_errs, auc_thresholds)
-    logger.info(
+    _logger.info(
         f"\nReprojThres={auc_thresholds}px AUC={reproj_auc} nsamples={nsamples}"
     )
 
     # Runtime
     if "match_time" in metrics:
         sample_match_time = 1e3 * np.sum(metrics.match_time) / n_queries
-        logger.info(f"Matching time (per pair):{sample_match_time:.2f} ms")
+        _logger.info(f"Matching time (per pair):{sample_match_time:.2f} ms")
 
     if return_qs:
         return (t_qs, R_qs)
