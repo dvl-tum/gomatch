@@ -48,6 +48,7 @@ setup(
         "torch-scatter",
         "tqdm",
     ],
+    extras_require=dict(full=["wget"]),
     author="Qunjie Zhou & Sérgio Agostinho",
     author_email="gomatch@googlegroups.com",
     packages=find_packages(),

@@ -76,5 +76,14 @@ python -m tools.extract_features_immatch --immatch_config 'immatch/superpoint'  
 This will generate the descriptor cache for SuperPoint.
 
 
+## 7-Scenes
+### Getting the Dataset
+
+Setting up this dataset was originally a somewhat involved task, so we ended up creating a tool for downloading and extracting the dataset. It's in `tools/download_7scenes.py`. From the root folder of this project, call it as
+```
+python tools/download_7scenes.py <prefix>
+```
+where `<prefix>` is a folder where the new dataset will be downloaded to. The tool will create a folder inside it and place all the necessary contents inside `<prefix>/7scenes`. Don't forget to symlink to the `data` folder.
+
 
 

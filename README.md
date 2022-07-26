@@ -37,9 +37,20 @@ pip install .
 
 This will pull all dependencies and install GoMatch's package with its models so that you can easily use them in your project.
 
+To install all required dependencies to also run training scripts and other tools, invoke
+```
+pip install ".[full]"
+```
+
+
 ## Uninstalling GoMatch
 
 Type in your terminal
 ```
 pip uninstall gomatch
 ```
+If you see the following error message
+> Can't uninstall 'gomatch'. No files were found to uninstall.
+
+Just call the command outside the root folder of the project.
+
