@@ -10,14 +10,8 @@ import wget
 
 PathT = Union[str, Path]
 
-URLS = dict(
-    chess="http://download.microsoft.com/download/2/8/5/28564B23-0828-408F-8631-23B1EFF1DAC8/chess.zip",
-    fire="http://download.microsoft.com/download/2/8/5/28564B23-0828-408F-8631-23B1EFF1DAC8/fire.zip",
-    heads="http://download.microsoft.com/download/2/8/5/28564B23-0828-408F-8631-23B1EFF1DAC8/heads.zip",
-    pumpkin="http://download.microsoft.com/download/2/8/5/28564B23-0828-408F-8631-23B1EFF1DAC8/pumpkin.zip",
-    redkitchen="http://download.microsoft.com/download/2/8/5/28564B23-0828-408F-8631-23B1EFF1DAC8/redkitchen.zip",
-    stairs="http://download.microsoft.com/download/2/8/5/28564B23-0828-408F-8631-23B1EFF1DAC8/stairs.zip",
-)
+SCENES = ["chess", "fire", "heads", "pumpkin", "redkitchen", "stairs"]
+DATASET_URL = "http://download.microsoft.com/download/2/8/5/28564B23-0828-408F-8631-23B1EFF1DAC8/{}.zip"
 RETRIEVAL_URL = "https://cvg-data.inf.ethz.ch/pixloc_CVPR2021/7Scenes/7scenes_densevlad_retrieval/{}_top10.txt"
 GRAVITY = dict(
     chess=["1.55444387e-02", "9.80374336e-01", "1.96531475e-01"],
@@ -69,8 +63,9 @@ def main() -> None:
     dataset_folder = os.path.join(args.prefix, "7scenes")
     os.makedirs(dataset_folder, exist_ok=True)
 
-    for scene, url in URLS.items():
+    for scene in SCENES:
         # download
+        url = DATASET_URL.format(scene)
         filename = wget.download(url, dataset_folder)
 
         def extract_scene():
