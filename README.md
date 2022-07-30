@@ -7,12 +7,13 @@ Due to the time constraints of ECCV camera ready deadline, we are still working 
 
 ## Table of Contents
 
-- [Setting Up Special Dependencies](#setting-up-special-dependencies)
-- [Installing GoMatch](#installing-gomatch)
-- [Uninstalling GoMatch](#uninstalling-gomatch)
+- Installation
+- Evaluation
+- Training (TODO)
 
 
-## Setting Up Special Dependencies
+## Installation
+#### Setting Up Special Dependencies
 
 Despite `pip` handling most of the dependency installation process there are some special packages that **usually** should be installed in advance, e.g. `pytorch` and `torch-scatter`. We list them below. Please follow their installation instructions first before proceeding.
 
@@ -26,7 +27,7 @@ Special packages:
 
 While we used these versions throughout development, one might be able to use their most recent versions and still replicate our results. We haven't tested it yet, so proceed at your own risk. If you're struggling to replicate results, consider creating an environment replicating the versions we used, as a sanity check.
 
-## Installing GoMatch
+#### Installing GoMatch
 
 The codebase is organized in a way that all code we considered that could be useful to other projects is bundled inside the `gomatch` top level directory. Whenever we mention installation, we are referring to the installation of this folder alongside the other packages in your python environment. The package includes the network architectures we tested, losses, metrics and the data loaders we used. It does NOT include the training and evaluation script. Those are not installed and need to be executed from the root folder of this project.
 
@@ -42,8 +43,7 @@ To install all required dependencies to also run training scripts and other tool
 pip install ".[full]"
 ```
 
-
-## Uninstalling GoMatch
+#### Uninstalling GoMatch
 
 Type in your terminal
 ```
@@ -54,3 +54,15 @@ If you see the following error message
 
 Just call the command outside the root folder of the project.
 
+## Evaluation
+
+#### Pretained model
+The pretrained models can be manually downloaded from [here](https://drive.google.com/file/d/1-J4SEBL6tBu3OpSSpW7qi_VA6LVcK98q/view?usp=sharing).
+Or download it from command line using gdown:
+```
+gdown 1-J4SEBL6tBu3OpSSpW7qi_VA6LVcK98q
+```
+The zip file contains the following three models:
+- _BPnPNet.ckpt_: our re-trained BPnPNet in our environment.
+- _GoMatchBVs_best.ckpt_: our best GoMatch model using bearing vectors.
+- _GoMatchCoords_best.ckpt_: our best GoMatch architecture trained using 3D coordinates.
