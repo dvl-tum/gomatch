@@ -12,6 +12,7 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    cast,
 )
 
 import numpy as np
@@ -65,8 +66,7 @@ def cal_error_auc(errors: Sequence[float], thresholds: Collection[float]) -> np.
     recalls = np.arange(N + 1) / N
     aucs: List[float] = []
     for thres in thresholds:
-        last_index = np.searchsorted(errors_, thres)
-        assert isinstance(last_index, int)
+        last_index = cast(int, np.searchsorted(errors_, thres))
         rcs_ = np.append(recalls[:last_index], recalls[last_index - 1])
         errs_ = np.append(errors_[:last_index], thres)
         aucs.append(np.trapz(rcs_, x=errs_) / thres)
