@@ -2,8 +2,8 @@
 
 Authors: Qunjie Zhou [@GrumpyZhou](https://github.com/GrumpyZhou), Sérgio Agostinho [@SergioRAgostinho](https://github.com/SergioRAgostinho)
 
-## ❗️Important Comment❗️
-Due to the time constraints of ECCV camera ready deadline, we are still working on preparing the pretrained models and more detailed instructions about reproducing our experiments. Please be patient about the update and we will try to do that asap. Thanks for your understanding. 
+This repository contains the Pytorch implementation of our paper accepted at ECCV22: Is Geometry Enough for Matching in Visual Localization? [[Paper]](https://arxiv.org/pdf/2203.12979.pdf) [[Video]](https://drive.google.com/file/d/1Rj_5PdIBsCVLNGrefEojTq6FcHLVEFqt/view?usp=sharing) [[Poster]](https://drive.google.com/file/d/17na6IPIcprTrO7vs9nvClEpP5N8lvwIx/view?usp=sharing).
+
 
 ## Table of Contents
 
