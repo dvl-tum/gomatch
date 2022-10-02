@@ -2,7 +2,7 @@
 
 Authors: Qunjie Zhou [@GrumpyZhou](https://github.com/GrumpyZhou), Sérgio Agostinho [@SergioRAgostinho](https://github.com/SergioRAgostinho)
 
-This repository contains the Pytorch implementation of our paper accepted at ECCV22: Is Geometry Enough for Matching in Visual Localization? [[Paper]](https://arxiv.org/pdf/2203.12979.pdf) [[Video]](https://drive.google.com/file/d/1Rj_5PdIBsCVLNGrefEojTq6FcHLVEFqt/view?usp=sharing) [[Poster]](https://drive.google.com/file/d/17na6IPIcprTrO7vs9nvClEpP5N8lvwIx/view?usp=sharing).
+This repository contains the Pytorch implementation of our paper accepted at ECCV22: Is Geometry Enough for Matching in Visual Localization? [[Paper]](https://arxiv.org/pdf/2203.12979.pdf) [[Video]](https://drive.google.com/file/d/1Rj_5PdIBsCVLNGrefEojTq6FcHLVEFqt/view?usp=sharing) [[Poster]](https://drive.google.com/file/d/1q_817QudISWF-LR5MtA9aL-vddUuGHpu/view?usp=sharing).
 
 
 ## Table of Contents
