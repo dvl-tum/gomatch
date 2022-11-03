@@ -8,8 +8,8 @@ from colmap.read_write_model import read_model, qvec2rotmat
 import numpy as np
 from tqdm import tqdm
 
-from blind_pnp.utils.geometry import camera_params_to_intrinsics_mat
-from blind_pnp.utils.setup_helper import get_logger
+from gomatch.utils.geometry import camera_params_to_intrinsics_mat
+from gomatch.utils.logger import get_logger
 
 
 SCENES = ("GreatCourt", "KingsCollege", "OldHospital", "ShopFacade", "StMarysChurch")

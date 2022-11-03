@@ -12,9 +12,9 @@ import cv2
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
-from typed_ast.ast3 import arg
 
-from blind_pnp.utils.setup_helper import get_logger  # , main
+from gomatch.utils.logger import get_logger
+
 
 SCENES = ("chess", "fire", "heads", "office", "pumpkin", "redkitchen", "stairs")
 Kd = np.array([[585, 0, 320], [0, 585, 240], [0, 0, 1]])

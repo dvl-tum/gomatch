@@ -210,3 +210,17 @@ def estimate_pose(
     R = Rodrigues(rvec)[0]
     t = tvec.ravel()
     return R, t, inliers
+
+
+def camera_params_to_intrinsics_mat(camera_info):
+    if camera_info["model"] != "SIMPLE_RADIAL":
+        raise NotImplementedError
+
+    K = np.array(
+        [
+            [camera_info["params"][0], 0, camera_info["params"][1]],
+            [0, camera_info["params"][0], camera_info["params"][2]],
+            [0, 0, 1],
+        ]
+    )
+    return K

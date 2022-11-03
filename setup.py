@@ -48,7 +48,12 @@ setup(
         "torch-scatter==2.0.6",
         "tqdm",
     ],
-    extras_require=dict(full=["wget"]),
+    extras_require=dict(
+        full=[
+            "wget",
+            "colmap @ git+https://github.com/SergioRAgostinho/colmap.git@python-packaging#egg=colmap",
+        ]
+    ),
     author="Qunjie Zhou & Sérgio Agostinho",
     author_email="gomatch@googlegroups.com",
     packages=find_packages(),
