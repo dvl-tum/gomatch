@@ -16,7 +16,7 @@ We rely on conda and pip for installing our package.
 
 TL;DR:
 ```bash
-python create -n gomatch python=3.7
+conda create -n gomatch python=3.7
 conda install pytorch==1.7.1 cudatoolkit=10.2 -c pytorch
 pip install . --find-links https://data.pyg.org/whl/torch-1.7.1+cu102.html
 ```
