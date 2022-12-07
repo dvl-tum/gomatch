@@ -1,8 +1,8 @@
 # GoMatch: A Geometric-Only Matcher for Visual Localization
 
-Authors: Qunjie Zhou [@GrumpyZhou](https://github.com/GrumpyZhou), Sérgio Agostinho [@SergioRAgostinho](https://github.com/SergioRAgostinho)
+Authors: Qunjie Zhou* [@GrumpyZhou](https://github.com/GrumpyZhou), Sérgio Agostinho* [@SergioRAgostinho](https://github.com/SergioRAgostinho), Aljosa Osep and Laura Leal-Taixé. (* equal contribution)
 
-This repository contains the Pytorch implementation of our paper accepted at ECCV22: Is Geometry Enough for Matching in Visual Localization? [[Paper]](https://arxiv.org/pdf/2203.12979.pdf) [[Video]](https://drive.google.com/file/d/1Rj_5PdIBsCVLNGrefEojTq6FcHLVEFqt/view?usp=sharing) [[Poster]](https://drive.google.com/file/d/1q_817QudISWF-LR5MtA9aL-vddUuGHpu/view?usp=sharing).
+This repository contains the Pytorch implementation of our paper accepted at ECCV22: Is Geometry Enough for Matching in Visual Localization? [[Paper]](https://arxiv.org/pdf/2203.12979.pdf) [[Video]](https://youtu.be/wgAOJlb2uD4) [[Poster]](https://drive.google.com/file/d/1q_817QudISWF-LR5MtA9aL-vddUuGHpu/view?usp=sharing).
 
 
 ## Table of Contents
