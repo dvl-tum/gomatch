@@ -99,7 +99,6 @@ class MatcherTrainer(pl.LightningModule):
 
 
 def train(args, exp_name):
-    # Make training determinisitic
     pl.seed_everything(args.seed)
 
     # Define output dir
@@ -144,7 +143,7 @@ def train(args, exp_name):
         trainer = pl.Trainer.from_argparse_args(
             args,
             logger=logger,
-            deterministic=True,
+            deterministic=False,
             callbacks=callbacks,
             resume_from_checkpoint=os.path.join(last_ckpt),
             num_sanity_val_steps=-1,  # ensure when resuming that the metric is computed over the entire validation set
@@ -154,7 +153,7 @@ def train(args, exp_name):
         trainer = pl.Trainer.from_argparse_args(
             args,
             logger=logger,
-            deterministic=True,
+            deterministic=False,
             callbacks=callbacks,
         )
 
