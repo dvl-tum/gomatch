@@ -70,9 +70,8 @@ class BaseDataset(data.Dataset):
         )
         scene3d_file = os.path.join(data_dir, "scene_points3d", f"{self.split}.npy")
         if not os.path.exists(scene3d_file):
-            # Incase we did not split scene file, use the all.npy
-            scene3d_file = os.path.join(data_dir, "scene_points3d", f"all.npy")
-            print(scene3d_file)
+            # Load pickle version
+            scene3d_file = os.path.join(data_dir, "scene_points3d", f"{self.split}.pkl")
 
         data_file = os.path.join(data_dir, dataset_conf.data_file)
         self.feature_dir = os.path.join(

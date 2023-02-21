@@ -2,6 +2,8 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, Namespace
 import glob
 import os
 from os.path import expanduser
+import pickle
+import yaml
 
 from colmap.read_write_model import read_points3d_binary
 import numpy as np
@@ -174,92 +176,54 @@ def process_scenes(args):
     hist = np.histogram(statis.ovs, bins=bins)[0]
     logger.info(f"Overlappings :\nbins={bins}\nhist={hist}")
 
-
-def reduce_3d_data(base_dir, save_dir, split=False):
+def cache_3d_data(args):
     global logger
+
+    save_pickle = args.save_pickle
+    ext =  'pkl' if save_pickle else 'npy'
+    base_dir = args.base_dir
+    save_dir = args.save_dir
+    split_config = args.split_config
+
+    # Load data splits: {split_tag: [scene_ids]}
+    with open(split_config, 'r') as f:
+        data_splits = yaml.load(f, Loader=yaml.FullLoader)['megadepth']['splits']
+        logger.info(f"Data splits: {data_splits.keys()}")
 
     points3D_dir = os.path.join(save_dir, "scene_points3d")
     if not os.path.exists(points3D_dir):
         os.makedirs(points3D_dir)
-    if not split:
-        save_path = os.path.join(points3D_dir, "all.npy")
-        if os.path.exists(save_path):
-            logger.info(f"Finished, {save_path} existed.")
-            return
-
-    scene_info_dir = os.path.join(base_dir, "scene_info")
-    scene_files = sorted(glob.glob(os.path.join(scene_info_dir, "*.npz")))
     logger.info(
-        f"Reduce 3D data: target save dir: {points3D_dir} scenes to process: {len(scene_files)}"
+        f"Merge 3D data: target save dir: {points3D_dir} config: {split_config}"
     )
 
-    # Save 3D points compactly in separate files
-    data = dict()
-    for scene_file in tqdm(scene_files):
-        scene_name = os.path.splitext(os.path.basename(scene_file))[0]
-        scene_points3d = read_points3d_binary(
-            os.path.join(base_dir, scene_name, "sparse", "points3D.bin")
-        )
-        point3Ds = {
-            v.id: np.concatenate([v.xyz, v.rgb, [v.error]])
-            for v in scene_points3d.values()
-        }
-
-        if not split:
-            data[scene_name] = point3Ds
+    # Save 3D points compactly for data splits
+    for split in data_splits:
+        save_path = os.path.join(points3D_dir, f"{split}.{ext}")
+        if os.path.exists(save_path):
+            logger.info(f"{save_path} existed.")
             continue
 
-        save_path = os.path.join(points3D_dir, f"{scene_name}.npy")
-        if os.path.exists(save_path):
-            logger.info(f"Skip {scene_name}.npy, existed.")
-        np.save(save_path, point3Ds)
-        logger.info(f"Save {scene_name}.npy, pts: {len(point3Ds)}")
+        data = {}
+        scene_list = data_splits[split]
+        for scene_name in tqdm(scene_list, total=len(scene_list)):
+            pts3d_path = os.path.join(base_dir, scene_name, "sparse", "points3D.bin")
+            if not os.path.exists(pts3d_path):
+                logger.info(f"{pts3d_path} does not exist, skip!")
+                continue
+            scene_points3d = read_points3d_binary(pts3d_path)
+            point3Ds = {
+                v.id: np.concatenate([v.xyz, v.rgb, [v.error]])
+                for v in scene_points3d.values()
+            }
+            data[scene_name] = point3Ds
 
-    if not split:
-        np.save(save_path, data)
-        logger.info(f"Saved {save_path}")
-
-
-def split_3d_to_train_val(points3d_file):
-    val_split = [
-        "0024",
-        "0021",
-        "0025",
-        "1589",
-        "0019",
-        "0008",
-        "0032",
-        "0063",
-        "0015",
-        "0022",
-        "0044",
-        "0087",
-        "0060",
-        "0183",
-        "0389",
-        "0058",
-        "0102",
-        "0238",
-        "0559",
-        "0189",
-        "0446",
-        "0024",
-        "0107",
-        "5004",
-        "0107",
-    ]
-
-    points3d = np.load(points3d_file, allow_pickle=True).item()
-    train = {}
-    val = {}
-
-    for sid in points3d:
-        if sid in val_split:
-            val[sid] = points3d[sid]
+        if save_pickle:
+            with open(save_path, 'wb') as handle:
+                pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
         else:
-            train[sid] = points3d[sid]
-    np.save(points3d_file.replace("all", "train"), train)
-    np.save(points3d_file.replace("all", "val"), val)
+            np.save(save_path, data)
+        logger.info(f"Split={split} scenes={len(scene_list)}\nSaved to {save_path}")
 
 
 def parse_arguments():
@@ -296,26 +260,27 @@ def parse_arguments():
         "--topk",
         type=int,
         nargs=2,
-        default=[3, 15],
+        default=[3, 10],
         metavar="K",
         help="Minimum and maximum number of images to be retrieved for each query.",
     )
     parser.add_argument(
         "--scene-max",
-        default=50,
+        default=500,
         metavar="N",
         type=int,
         help="Maximum number of queries per scene.",
     )
     parser.add_argument(
-        "--split-scenes",
-        action="store_true",
-        help="If specified, 3D points are stored in separate files per scene.",
+        "--split-config",
+        default=os.path.join("configs", "datasets.yml"),
+        type=str,
+        help="Dataset yaml config to define the data splits.",
     )
     parser.add_argument(
-        "--split-train-val",
+        "--save-pickle",
         action="store_true",
-        help="If specified, 3D points are split into train val files.",
+        help="If specified, save 3d data in pickle format. Otherwise in numpy format.",
     )
     parser.add_argument(
         "--skip-scene-parsing",
@@ -347,11 +312,7 @@ def main():
     if args.skip_3d_data_processing:
         return
 
-    reduce_3d_data(args.base_dir, args.save_dir, args.split_scenes)
-
-    if not args.split_scenes and args.split_train_val:
-        points3d_file = os.path.join(args.save_dir, "scene_points3d/all.npy")
-        split_3d_to_train_val(points3d_file)
+    cache_3d_data(args)
 
 
 if __name__ == "__main__":

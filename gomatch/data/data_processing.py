@@ -12,6 +12,7 @@ from typing import (
     Union,
 )
 
+import pickle
 import numpy as np
 import torch
 
@@ -40,7 +41,11 @@ def load_scene_data(
 
     # Load entire 3d point data
     _logger.info(f"Loading scene 3D points from {scene3d_file} ...")
-    pts3d_data = np.load(scene3d_file, allow_pickle=True).item()
+    if scene3d_file.split('.')[-1] == 'pkl':
+        with open(scene3d_file, 'rb') as handle:
+            pts3d_data = pickle.load(handle)
+    else:
+        pts3d_data = np.load(scene3d_file, allow_pickle=True).item()
     _logger.info(f"Done with 3D data loading.")
 
     # Load all query ids, scene ids and image data
