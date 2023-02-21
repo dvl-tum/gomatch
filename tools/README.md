@@ -22,6 +22,7 @@ Download and preprocess the dataset following the [instructions](https://github.
 
 tool location: [`tools/prep_megadepth_2D3D_data.py`](tools/prep_megadepth_2D3D_data.py)
 
+#### Option 1
 By default the tool assumes there is a folder with the undistorted SfM reconstruction of MegaDepth symlinked to the `data` folder, as explained in the previous section. If the folder is symlinked, theoretically no arguments need to passed. Just call the tool with
 ```
 $ python tools/prep_megadepth_2D3D_data.py
@@ -29,6 +30,14 @@ $ python tools/prep_megadepth_2D3D_data.py
 
 After completion, the tool will generate a number of files in `data/MegaDepth_undistort/data_processed/v2`.
 
+#### Option 2
+You can also down load the exact file we used for training from [here](https://vision.in.tum.de/webshare/u/zhouq/gomatch/train_data/). Notice, the name of the file might differ from the one if you generate since we have cleanned some outdated code in the script. But the logic remains unchanged.
+After that you still need to generate the cached 3D points using the following command:
+```
+python tools/prep_megadepth_2D3D_data.py --save-dir 'data/MegaDepth_undistort/data_processed/v2' \
+    --skip-scene-parsing --save-pickle --split-config 'configs/datasets.yml'
+```
+The option `--save-pickle` saves the data as pickle file otherwise by default as a numpy file. 
 
 ### Generating a Descriptor Cache
 
